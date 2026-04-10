@@ -307,6 +307,217 @@ void bench_xmx_int8_single_tile(sycl::queue& q, int M, int N, int K,
 }
 
 // ============================================================
+// Stage 3: XMX Multi-Tile Register Blocking GEMM
+// Each sub-group computes multiple output tiles, reusing loaded
+// A/B tiles across tiles to increase arithmetic intensity.
+//
+// 2×2 blocking: 4 output tiles (16×32), each A reused 2x, B reused 2x
+// 4×2 blocking: 8 output tiles (32×32), each A reused 2x, B reused 4x
+//
+// Arithmetic intensity improvement:
+//   Single-tile: 5.3 FLOPs/byte
+//   2×2:        10.7 FLOPs/byte  (2x)
+//   4×2:        21.3 FLOPs/byte  (4x)
+// ============================================================
+
+// --- Multi-tile FP16/BF16, configurable M_TILES × N_TILES ---
+template<typename InT, int MT_M, int MT_N>
+void bench_xmx_multi_tile(sycl::queue& q, int M, int N, int K,
+                           int warmup, int iters, const char* name) {
+    constexpr int TM = 8, TN = 16, TK = 16;
+    constexpr int OUT_M = MT_M * TM;
+    constexpr int OUT_N = MT_N * TN;
+    printf("\n=== XMX multi-tile %dx%d %s  M=%d N=%d K=%d ===\n",
+           MT_M, MT_N, name, M, N, K);
+    fflush(stdout);
+
+    size_t szA = (size_t)M * K, szB = (size_t)K * N, szC = (size_t)M * N;
+    InT *dA = sycl::malloc_device<InT>(szA, q);
+    InT *dB = sycl::malloc_device<InT>(szB, q);
+    float *dC = sycl::malloc_device<float>(szC, q);
+    q.fill(dA, InT(1.0f), szA);
+    q.fill(dB, InT(1.0f), szB);
+    q.wait();
+
+    int wg_m = (M + OUT_M - 1) / OUT_M;
+    int wg_n = (N + OUT_N - 1) / OUT_N;
+
+    auto launch = [&]() {
+        q.submit([&](sycl::handler& h) {
+            h.parallel_for(
+                sycl::nd_range<2>(sycl::range<2>(wg_m * 16, wg_n),
+                                  sycl::range<2>(16, 1)),
+                [=](sycl::nd_item<2> item) [[sycl::reqd_sub_group_size(16)]] {
+                    sycl::sub_group sg = item.get_sub_group();
+                    int gm = item.get_group(0);
+                    int gn = item.get_group(1);
+
+                    auto pA = sycl::address_space_cast<
+                        sycl::access::address_space::global_space,
+                        sycl::access::decorated::no>(dA);
+                    auto pB = sycl::address_space_cast<
+                        sycl::access::address_space::global_space,
+                        sycl::access::decorated::no>(dB);
+                    auto pC = sycl::address_space_cast<
+                        sycl::access::address_space::global_space,
+                        sycl::access::decorated::no>(dC);
+
+                    // Accumulator matrices for all output tiles
+                    matrix::joint_matrix<sycl::sub_group,
+                        float, matrix::use::accumulator, TM, TN>
+                        sub_c[MT_M][MT_N];
+                    for (int i = 0; i < MT_M; i++)
+                        for (int j = 0; j < MT_N; j++)
+                            matrix::joint_matrix_fill(sg, sub_c[i][j], 0.0f);
+
+                    #pragma unroll 4
+                    for (int k = 0; k < K; k += TK) {
+                        // Load MT_M A-tiles (rows direction)
+                        matrix::joint_matrix<sycl::sub_group, InT, matrix::use::a,
+                            TM, TK, matrix::layout::row_major> sub_a[MT_M];
+                        for (int i = 0; i < MT_M; i++)
+                            matrix::joint_matrix_load(sg, sub_a[i],
+                                pA + (gm * OUT_M + i * TM) * K + k, K);
+
+                        // Load MT_N B-tiles (cols direction)
+                        matrix::joint_matrix<sycl::sub_group, InT, matrix::use::b,
+                            TK, TN, matrix::layout::row_major> sub_b[MT_N];
+                        for (int j = 0; j < MT_N; j++)
+                            matrix::joint_matrix_load(sg, sub_b[j],
+                                pB + k * N + (gn * OUT_N + j * TN), N);
+
+                        // Compute all MT_M × MT_N combinations
+                        // Each A-tile is reused MT_N times, each B-tile MT_M times
+                        for (int i = 0; i < MT_M; i++)
+                            for (int j = 0; j < MT_N; j++)
+                                matrix::joint_matrix_mad(sg, sub_c[i][j],
+                                    sub_a[i], sub_b[j], sub_c[i][j]);
+                    }
+
+                    // Store all output tiles
+                    for (int i = 0; i < MT_M; i++)
+                        for (int j = 0; j < MT_N; j++)
+                            matrix::joint_matrix_store(sg, sub_c[i][j],
+                                pC + (gm * OUT_M + i * TM) * N + gn * OUT_N + j * TN,
+                                N, matrix::layout::row_major);
+                });
+        });
+    };
+
+    double flops = 2.0 * (double)M * N * K;
+    for (int i = 0; i < warmup; i++) launch();
+    q.wait();
+    float best = 1e9f;
+    for (int i = 0; i < iters; i++) {
+        SYCLBenchmarkTimer t(q);
+        t.start(); launch(); t.stop();
+        float ms = t.milliseconds();
+        if (ms < best) best = ms;
+        printf("  iter %2d: %8.3f ms  GFLOPS=%8.1f\n", i, ms, flops / (ms * 1e-3) / 1e9);
+    }
+    printf("  %-12s best=%8.3f ms  GFLOPS=%8.1f  util=%.1f%%\n",
+           name, best, flops / (best * 1e-3) / 1e9,
+           flops / (best * 1e-3) / 1e9 / 16000.0 * 100);
+
+    sycl::free(dA, q); sycl::free(dB, q); sycl::free(dC, q);
+}
+
+// --- Multi-tile INT8, 2×2 blocking ---
+void bench_xmx_int8_multi_tile(sycl::queue& q, int M, int N, int K,
+                                int warmup, int iters) {
+    constexpr int TM = 8, TN = 16, TK = 32;
+    constexpr int MT_M = 2, MT_N = 2;
+    constexpr int OUT_M = MT_M * TM;
+    constexpr int OUT_N = MT_N * TN;
+    printf("\n=== XMX multi-tile 2x2 int8  M=%d N=%d K=%d ===\n", M, N, K);
+    fflush(stdout);
+
+    size_t szA = (size_t)M * K, szB = (size_t)K * N, szC = (size_t)M * N;
+    int8_t *dA = sycl::malloc_device<int8_t>(szA, q);
+    int8_t *dB = sycl::malloc_device<int8_t>(szB, q);
+    int32_t *dC = sycl::malloc_device<int32_t>(szC, q);
+    q.fill(dA, int8_t(1), szA);
+    q.fill(dB, int8_t(1), szB);
+    q.wait();
+
+    int wg_m = (M + OUT_M - 1) / OUT_M;
+    int wg_n = (N + OUT_N - 1) / OUT_N;
+
+    auto launch = [&]() {
+        q.submit([&](sycl::handler& h) {
+            h.parallel_for(
+                sycl::nd_range<2>(sycl::range<2>(wg_m * 16, wg_n),
+                                  sycl::range<2>(16, 1)),
+                [=](sycl::nd_item<2> item) [[sycl::reqd_sub_group_size(16)]] {
+                    sycl::sub_group sg = item.get_sub_group();
+                    int gm = item.get_group(0);
+                    int gn = item.get_group(1);
+
+                    auto pA = sycl::address_space_cast<
+                        sycl::access::address_space::global_space,
+                        sycl::access::decorated::no>(dA);
+                    auto pB = sycl::address_space_cast<
+                        sycl::access::address_space::global_space,
+                        sycl::access::decorated::no>(dB);
+                    auto pC = sycl::address_space_cast<
+                        sycl::access::address_space::global_space,
+                        sycl::access::decorated::no>(dC);
+
+                    matrix::joint_matrix<sycl::sub_group,
+                        int32_t, matrix::use::accumulator, TM, TN>
+                        sub_c[MT_M][MT_N];
+                    for (int i = 0; i < MT_M; i++)
+                        for (int j = 0; j < MT_N; j++)
+                            matrix::joint_matrix_fill(sg, sub_c[i][j], int32_t(0));
+
+                    #pragma unroll 4
+                    for (int k = 0; k < K; k += TK) {
+                        matrix::joint_matrix<sycl::sub_group, int8_t, matrix::use::a,
+                            TM, TK, matrix::layout::row_major> sub_a[MT_M];
+                        for (int i = 0; i < MT_M; i++)
+                            matrix::joint_matrix_load(sg, sub_a[i],
+                                pA + (gm * OUT_M + i * TM) * K + k, K);
+
+                        matrix::joint_matrix<sycl::sub_group, int8_t, matrix::use::b,
+                            TK, TN, matrix::layout::row_major> sub_b[MT_N];
+                        for (int j = 0; j < MT_N; j++)
+                            matrix::joint_matrix_load(sg, sub_b[j],
+                                pB + k * N + (gn * OUT_N + j * TN), N);
+
+                        for (int i = 0; i < MT_M; i++)
+                            for (int j = 0; j < MT_N; j++)
+                                matrix::joint_matrix_mad(sg, sub_c[i][j],
+                                    sub_a[i], sub_b[j], sub_c[i][j]);
+                    }
+
+                    for (int i = 0; i < MT_M; i++)
+                        for (int j = 0; j < MT_N; j++)
+                            matrix::joint_matrix_store(sg, sub_c[i][j],
+                                pC + (gm * OUT_M + i * TM) * N + gn * OUT_N + j * TN,
+                                N, matrix::layout::row_major);
+                });
+        });
+    };
+
+    double flops = 2.0 * (double)M * N * K;
+    for (int i = 0; i < warmup; i++) launch();
+    q.wait();
+    float best = 1e9f;
+    for (int i = 0; i < iters; i++) {
+        SYCLBenchmarkTimer t(q);
+        t.start(); launch(); t.stop();
+        float ms = t.milliseconds();
+        if (ms < best) best = ms;
+        printf("  iter %2d: %8.3f ms  GOPS=%8.1f\n", i, ms, flops / (ms * 1e-3) / 1e9);
+    }
+    printf("  %-12s best=%8.3f ms  GOPS=%8.1f  util=%.1f%%\n",
+           "int8", best, flops / (best * 1e-3) / 1e9,
+           flops / (best * 1e-3) / 1e9 / 16000.0 * 100);
+
+    sycl::free(dA, q); sycl::free(dB, q); sycl::free(dC, q);
+}
+
+// ============================================================
 // Main
 // ============================================================
 int main(int argc, char* argv[]) {
@@ -336,6 +547,12 @@ int main(int argc, char* argv[]) {
     bench_xmx_single_tile<sycl::half>(q, M, N, K, 2, iters, "fp16");
     bench_xmx_single_tile<sycl::ext::oneapi::bfloat16>(q, M, N, K, 2, iters, "bf16");
     bench_xmx_int8_single_tile(q, M, N, K, 2, iters);
+
+    // Stage 3: XMX multi-tile register blocking — data reuse across tiles
+    bench_xmx_multi_tile<sycl::half, 2, 2>(q, M, N, K, 2, iters, "fp16_mt2x2");
+    bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 2, 2>(q, M, N, K, 2, iters, "bf16_mt2x2");
+    bench_xmx_int8_multi_tile(q, M, N, K, 2, iters);
+    bench_xmx_multi_tile<sycl::half, 4, 2>(q, M, N, K, 2, iters, "fp16_mt4x2");
 
     printf("\n=== Done ===\n");
     return 0;
