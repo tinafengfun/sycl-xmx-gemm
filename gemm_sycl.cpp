@@ -560,6 +560,9 @@ int main(int argc, char* argv[]) {
     bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 4, 2>(q, M, N, K, 2, iters, "bf16_mt4x2");
     bench_xmx_multi_tile<sycl::half, 4, 4>(q, M, N, K, 2, iters, "fp16_mt4x4");
     bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 4, 4>(q, M, N, K, 2, iters, "bf16_mt4x4");
+    bench_xmx_multi_tile<sycl::half, 8, 2>(q, M, N, K, 2, iters, "fp16_mt8x2");
+    bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 8, 2>(q, M, N, K, 2, iters, "bf16_mt8x2");
+    bench_xmx_int8_multi_tile<4, 4>(q, M, N, K, 2, iters, "int8_mt4x4");
 
     printf("\n=== Done ===\n");
     return 0;
