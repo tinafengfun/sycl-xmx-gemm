@@ -313,11 +313,13 @@ void bench_xmx_int8_single_tile(sycl::queue& q, int M, int N, int K,
 //
 // 2×2 blocking: 4 output tiles (16×32), each A reused 2x, B reused 2x
 // 4×2 blocking: 8 output tiles (32×32), each A reused 2x, B reused 4x
+// 4×4 blocking: 16 output tiles (32×64), each A reused 4x, B reused 4x
 //
 // Arithmetic intensity improvement:
 //   Single-tile: 5.3 FLOPs/byte
 //   2×2:        10.7 FLOPs/byte  (2x)
 //   4×2:        21.3 FLOPs/byte  (4x)
+//   4×4:        42.7 FLOPs/byte  (8x)
 // ============================================================
 
 // --- Multi-tile FP16/BF16, configurable M_TILES × N_TILES ---
@@ -422,14 +424,15 @@ void bench_xmx_multi_tile(sycl::queue& q, int M, int N, int K,
     sycl::free(dA, q); sycl::free(dB, q); sycl::free(dC, q);
 }
 
-// --- Multi-tile INT8, 2×2 blocking ---
+// --- Multi-tile INT8, configurable M_TILES × N_TILES ---
+template<int MT_M, int MT_N>
 void bench_xmx_int8_multi_tile(sycl::queue& q, int M, int N, int K,
-                                int warmup, int iters) {
+                                int warmup, int iters, const char* name) {
     constexpr int TM = 8, TN = 16, TK = 32;
-    constexpr int MT_M = 2, MT_N = 2;
     constexpr int OUT_M = MT_M * TM;
     constexpr int OUT_N = MT_N * TN;
-    printf("\n=== XMX multi-tile 2x2 int8  M=%d N=%d K=%d ===\n", M, N, K);
+    printf("\n=== XMX multi-tile %dx%d %s  M=%d N=%d K=%d ===\n",
+           MT_M, MT_N, name, M, N, K);
     fflush(stdout);
 
     size_t szA = (size_t)M * K, szB = (size_t)K * N, szC = (size_t)M * N;
@@ -511,7 +514,7 @@ void bench_xmx_int8_multi_tile(sycl::queue& q, int M, int N, int K,
         printf("  iter %2d: %8.3f ms  GOPS=%8.1f\n", i, ms, flops / (ms * 1e-3) / 1e9);
     }
     printf("  %-12s best=%8.3f ms  GOPS=%8.1f  util=%.1f%%\n",
-           "int8", best, flops / (best * 1e-3) / 1e9,
+           name, best, flops / (best * 1e-3) / 1e9,
            flops / (best * 1e-3) / 1e9 / 16000.0 * 100);
 
     sycl::free(dA, q); sycl::free(dB, q); sycl::free(dC, q);
@@ -551,8 +554,15 @@ int main(int argc, char* argv[]) {
     // Stage 3: XMX multi-tile register blocking — data reuse across tiles
     bench_xmx_multi_tile<sycl::half, 2, 2>(q, M, N, K, 2, iters, "fp16_mt2x2");
     bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 2, 2>(q, M, N, K, 2, iters, "bf16_mt2x2");
-    bench_xmx_int8_multi_tile(q, M, N, K, 2, iters);
+    bench_xmx_int8_multi_tile<2, 2>(q, M, N, K, 2, iters, "int8_mt2x2");
+    bench_xmx_int8_multi_tile<4, 2>(q, M, N, K, 2, iters, "int8_mt4x2");
     bench_xmx_multi_tile<sycl::half, 4, 2>(q, M, N, K, 2, iters, "fp16_mt4x2");
+    bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 4, 2>(q, M, N, K, 2, iters, "bf16_mt4x2");
+    bench_xmx_multi_tile<sycl::half, 4, 4>(q, M, N, K, 2, iters, "fp16_mt4x4");
+    bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 4, 4>(q, M, N, K, 2, iters, "bf16_mt4x4");
+    bench_xmx_multi_tile<sycl::half, 8, 2>(q, M, N, K, 2, iters, "fp16_mt8x2");
+    bench_xmx_multi_tile<sycl::ext::oneapi::bfloat16, 8, 2>(q, M, N, K, 2, iters, "bf16_mt8x2");
+    bench_xmx_int8_multi_tile<4, 4>(q, M, N, K, 2, iters, "int8_mt4x4");
 
     printf("\n=== Done ===\n");
     return 0;
