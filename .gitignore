@@ -1,1 +1,17 @@
+# Build artifacts
+build/
+*.o
+*.d
+
+# Compiled binaries
 gemm_sycl
+gemm_sycl_refcfg
+gemm_sycl_refcfg_env
+refer_bf16_tflops_check
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
