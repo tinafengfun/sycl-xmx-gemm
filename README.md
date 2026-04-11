@@ -26,24 +26,39 @@ A step-by-step demonstration of optimizing GEMM on **Intel Arc Pro B60** (Xe2 / 
 
 | Spec | Value |
 |------|-------|
-| GPU | Intel Arc Pro B60 (BMG, Xe2) |
-| XMX BF16 Peak | ~96 TFLOPS |
+| GPU | Intel Arc Pro B60 (BMG G21, Xe2) |
+| Launch | Q2'25 |
+| Xe Cores | 20 |
 | EU Count | 160 |
+| XMX Engines | 160 |
+| Graphics Clock | 2400 MHz |
+| Memory | 24 GB GDDR6 |
+| Memory Bandwidth | 456 GB/s |
+| TDP | 120W – 200W |
 | Sub-group Size | 16 |
-| HBM Bandwidth | ~500 GB/s |
 | XMX Tile (BF16) | 8×16×16 |
 | XMX Tile (FP16) | 8×16×16 |
 | XMX Tile (INT8) | 8×16×32 |
+| XMX BF16 Peak | ~96 TFLOPS |
+| Interface | PCIe Gen 5 x8 |
+| Display | 3× DP 2.1, 1× HDMI 2.1 |
 
 ## Quick Start
+
+> **Note**: To reproduce the Stage 4 peak results (80+ TFLOPS), check out the `feat/bf16-80t-xmx-gemm` branch:
+> ```bash
+> git checkout feat/bf16-80t-xmx-gemm
+> ```
+> The `main` branch contains Stage 1-3 code. Stage 4 optimized kernels live on the feature branch.
 
 ```bash
 # 1. Build all targets
 ./scripts/build.sh
 
-# 2. Run benchmark (8192×8192×4096)
+# 2. Run benchmark (8192×8192×4096, 100 warmup + 500 iters)
 ./scripts/run_bench.sh           # BF16 (default)
 ./scripts/run_bench.sh fp16      # FP16
+./scripts/run_bench.sh quick     # Quick test (10+50)
 
 # 3. Run correctness verification
 ./scripts/run_verify.sh
