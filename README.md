@@ -9,7 +9,7 @@ A step-by-step demonstration of optimizing GEMM on **Intel Arc Pro B60** (Xe2 / 
 | 1 | `main` | Naive GEMM (one thread/output) | ~0.2 | — |
 | 2 | PR #1 | XMX `joint_matrix` single-tile | ~7.1 | — |
 | 3 | PR #2 | Multi-tile register blocking (2×2, 4×2) | ~34.7 | — |
-| **4** | **PR #3 (this)** | **BF16 VNNI + 4×4 blocking + prefetch + split-N** | **84.98** | **88.5%** |
+| **4** | **PR #4** | **BF16 VNNI + 4×4 blocking + prefetch + split-N** | **84.98** | **88.5%** |
 
 ### Stage 4 Key Results (BF16 on Intel Arc Pro B60)
 
@@ -77,7 +77,7 @@ export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"
 export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"
 export IGC_VectorAliasBBThreshold=100000000000
 
-./bench_bf16_80t 10 50          # Full benchmark
+./bench_bf16_80t 100 500        # Full benchmark (100 warmup + 500 iters)
 ./verify_correctness             # Correctness check
 
 # Original Stage 1-3
