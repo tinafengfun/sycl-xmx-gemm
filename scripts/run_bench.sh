@@ -1,11 +1,12 @@
 #!/bin/bash
 # ==========================================================================
-# Run BF16 GEMM benchmark with optimal GPU configuration
+# Run GEMM benchmark with optimal GPU configuration
 # ==========================================================================
 # Usage:
-#   ./scripts/run_bench.sh                 # Full benchmark (8192x8192x4096)
-#   ./scripts/run_bench.sh quick           # Quick test (fewer iterations)
-#   ./scripts/run_bench.sh 4096 4096 4096  # Custom size
+#   ./scripts/run_bench.sh                 # BF16 benchmark (default)
+#   ./scripts/run_bench.sh fp16            # FP16 benchmark
+#   ./scripts/run_bench.sh quick           # Quick BF16 test (fewer iterations)
+#   ./scripts/run_bench.sh fp16 quick      # Quick FP16 test
 # ==========================================================================
 
 set -e
@@ -18,30 +19,36 @@ export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"
 export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"
 export IGC_VectorAliasBBThreshold=100000000000
 
-BINARY="${ROOT_DIR}/build/bench_bf16_80t"
-
-if [ ! -f "${BINARY}" ]; then
-    echo "Binary not found. Run ./scripts/build.sh first."
-    exit 1
-fi
-
+PRECISION="bf16"
 WARMUP=10
 ITERS=50
 
-case "${1:-default}" in
-    quick)
-        WARMUP=3
-        ITERS=10
-        shift || true
-        ;;
-    default)
-        ;;
-    *)
-        # User provided custom args, pass through
-        ;;
-esac
+# Parse precision argument
+if [ "${1:-}" = "fp16" ]; then
+    PRECISION="fp16"
+    shift
+fi
 
-echo "=== Running BF16 GEMM benchmark ==="
+if [ "${1:-}" = "quick" ]; then
+    WARMUP=3
+    ITERS=10
+    shift || true
+fi
+
+if [ "$PRECISION" = "fp16" ]; then
+    BINARY="${ROOT_DIR}/build/bench_fp16_80t"
+    LABEL="FP16"
+else
+    BINARY="${ROOT_DIR}/build/bench_bf16_80t"
+    LABEL="BF16"
+fi
+
+if [ ! -f "${BINARY}" ]; then
+    echo "Binary not found (${BINARY}). Run ./scripts/build.sh first."
+    exit 1
+fi
+
+echo "=== Running ${LABEL} GEMM benchmark ==="
 echo "  Warmup: ${WARMUP}, Iterations: ${ITERS}"
 echo "  GPU env: 256 GRF, large register file, L1 prefetch"
 echo ""

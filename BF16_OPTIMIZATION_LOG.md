@@ -93,12 +93,29 @@ same Docker environment, same env vars (`IGC_ExtraOCLOptions=-cl-intel-256-GRF-p
 7. **L1 seed prefetch** of next k-block gives +7 TFLOPS gain.
 8. **Prefetch distance**: k+32 is optimal; further distances degrade performance.
 
+## FP16 Results (Same Kernel Pattern)
+
+FP16 benchmark using identical 4×4 + VNNI + pfL1 + split-N pattern. Results within ±0.6 TFLOPS of BF16.
+
+| Size | FP16 TFLOPS | BF16 TFLOPS | Delta |
+|------|------------:|------------:|------:|
+| 8192×2048×4096 | 84.92 | 84.98 | -0.07 |
+| 4096×4096×4096 | 81.62 | 81.25 | +0.37 |
+| 8192×4096×4096 | 81.16 | 81.03 | +0.13 |
+| 8192×8192×4096 | 73.02 | 73.14 | -0.12 |
+| Split-N=2048 (4c) | **85.17** | 84.58 | +0.59 |
+| Split-N=4096 (2c) | 80.71 | 80.65 | +0.06 |
+
+**Conclusion**: Optimizations are data-type agnostic on Xe2 XMX. FP16 slightly edges BF16 at split-N=2048.
+
 ## Current Best
 
-- **Single-kernel best**: `84.98 TFLOPS` at 8192×2048×4096 (v13b, 4×4 tiles + pfL1)
+- **FP16 peak**: `85.17 TFLOPS` at 8192×8192×4096 split-N=2048, 4 chunks
+- **BF16 peak**: `84.98 TFLOPS` at 8192×2048×4096 (v13b, 4×4 tiles + pfL1)
 - **8192³×4096 best**: `84.58 TFLOPS` via split-N=2048, 4 chunks (v13b, wall-clock verified)
 - **Reliable 80+ TFLOPS**: split-N=4096, 2 chunks → 80.65 TFLOPS at 8192³×4096
-- Best kernel source: `gemm_80t_v13b.cpp`
+- Best BF16 kernel source: `src/kernels/bench_bf16_80t.cpp`
+- Best FP16 kernel source: `src/kernels/bench_fp16_80t.cpp`
 
 ## Update Rule (for every new optimization)
 

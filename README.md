@@ -42,7 +42,8 @@ A step-by-step demonstration of optimizing GEMM on **Intel Arc Pro B60** (Xe2 / 
 ./scripts/build.sh
 
 # 2. Run benchmark (8192×8192×4096)
-./scripts/run_bench.sh
+./scripts/run_bench.sh           # BF16 (default)
+./scripts/run_bench.sh fp16      # FP16
 
 # 3. Run correctness verification
 ./scripts/run_verify.sh
@@ -96,7 +97,8 @@ export IGC_VectorAliasBBThreshold=100000000000
 │
 ├── src/
 │   ├── kernels/
-│   │   └── bench_bf16_80t.cpp         # Stage 4: BF16 benchmark (80+ TFLOPS)
+│   │   ├── bench_bf16_80t.cpp         # Stage 4: BF16 benchmark (80+ TFLOPS)
+│   │   └── bench_fp16_80t.cpp         # Stage 4: FP16 benchmark (80+ TFLOPS)
 │   └── tools/
 │       ├── verify_correctness.cpp      # Correctness verification (single + split-N)
 │       └── query_matrix.cpp           # Query device XMX capabilities
@@ -158,6 +160,21 @@ export IGC_VectorAliasBBThreshold=100000000000
 | ND-range dimension swap | 65.3 TFLOPS | Worse scheduling |
 | Prefetch distance > k+32 | 70.5 TFLOPS | Over-prefetching |
 | `-ffast-math` flag | 64.9 TFLOPS | Unknown compiler regression |
+
+## FP16 Results
+
+FP16 performance matches BF16 within ±0.6 TFLOPS across all sizes — the optimizations are data-type agnostic on Xe2 XMX.
+
+| Problem Size | FP16 TFLOPS | BF16 TFLOPS | Delta |
+|-------------|------------:|------------:|------:|
+| 8192 × 2048 × 4096 | **84.92** | 84.98 | -0.07 |
+| 4096 × 4096 × 4096 | **81.62** | 81.25 | +0.37 |
+| 8192 × 4096 × 4096 | 81.16 | 81.03 | +0.13 |
+| 8192 × 8192 × 4096 | 73.02 | 73.14 | -0.12 |
+| Split-N=2048 (4 chunks) | **85.17** | 84.58 | +0.59 |
+| Split-N=4096 (2 chunks) | 80.71 | 80.65 | +0.06 |
+
+FP16 slightly edges BF16 at the split-N=2048 sweet spot (85.17 vs 84.58 TFLOPS).
 
 ## Correctness Verification
 

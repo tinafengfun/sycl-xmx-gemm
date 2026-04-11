@@ -43,17 +43,28 @@ build_query() {
     echo "  → ${BUILD_DIR}/query_matrix"
 }
 
+build_bench_fp16() {
+    echo "=== Building FP16 GEMM benchmark ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/bench_fp16_80t.cpp" \
+        -o "${BUILD_DIR}/bench_fp16_80t"
+    echo "  → ${BUILD_DIR}/bench_fp16_80t"
+}
+
 case "${1:-all}" in
     bench)   build_bench ;;
+    bench16) build_bench_fp16 ;;
     verify)  build_verify ;;
     query)   build_query ;;
     all)
         build_bench
+        build_bench_fp16
         build_verify
         build_query
         echo ""
         echo "=== Build complete ==="
-        echo "Run benchmarks:  ./scripts/run_bench.sh"
+        echo "Run BF16 bench:   ./scripts/run_bench.sh"
+        echo "Run FP16 bench:   ./scripts/run_bench.sh fp16"
         echo "Run verification: ./scripts/run_verify.sh"
         ;;
     clean)
