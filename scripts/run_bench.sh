@@ -20,8 +20,8 @@ export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-o
 export IGC_VectorAliasBBThreshold=100000000000
 
 PRECISION="bf16"
-WARMUP=10
-ITERS=50
+WARMUP=100
+ITERS=500
 
 # Parse precision argument
 if [ "${1:-}" = "fp16" ]; then
@@ -30,8 +30,8 @@ if [ "${1:-}" = "fp16" ]; then
 fi
 
 if [ "${1:-}" = "quick" ]; then
-    WARMUP=3
-    ITERS=10
+    WARMUP=10
+    ITERS=50
     shift || true
 fi
 
