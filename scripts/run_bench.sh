@@ -17,7 +17,8 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
 export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"
 export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"
-export IGC_VectorAliasBBThreshold=100000000000
+export IGC_VISAOptions="-perfmodel"
+export IGC_VectorAliasBBThreshold=10000
 
 PRECISION="bf16"
 WARMUP=100

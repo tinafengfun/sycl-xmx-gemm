@@ -43,6 +43,14 @@ build_query() {
     echo "  → ${BUILD_DIR}/query_matrix"
 }
 
+build_verify_acc() {
+    echo "=== Building accuracy verification ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/tools/verify_accuracy.cpp" \
+        -o "${BUILD_DIR}/verify_accuracy"
+    echo "  → ${BUILD_DIR}/verify_accuracy"
+}
+
 build_bench_fp16() {
     echo "=== Building FP16 GEMM benchmark ==="
     icpx ${COMMON_FLAGS} \
@@ -51,20 +59,78 @@ build_bench_fp16() {
     echo "  → ${BUILD_DIR}/bench_fp16_80t"
 }
 
+build_v20() {
+    echo "=== Building v20 pipeline experiments ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v20_pipeline.cpp" \
+        -o "${BUILD_DIR}/gemm_v20_pipeline"
+    echo "  → ${BUILD_DIR}/gemm_v20_pipeline"
+}
+
+build_v20_tiles() {
+    echo "=== Building v20 tile sweep ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v20_tiles.cpp" \
+        -o "${BUILD_DIR}/gemm_v20_tiles"
+    echo "  → ${BUILD_DIR}/gemm_v20_tiles"
+}
+
+build_v20_pf() {
+    echo "=== Building v20 prefetch sweep ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v20_prefetch.cpp" \
+        -o "${BUILD_DIR}/gemm_v20_prefetch"
+    echo "  → ${BUILD_DIR}/gemm_v20_prefetch"
+}
+
+build_v20_multisg() {
+    echo "=== Building v20 multi-SG ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v20_multisg.cpp" \
+        -o "${BUILD_DIR}/gemm_v20_multisg"
+    echo "  → ${BUILD_DIR}/gemm_v20_multisg"
+}
+
+build_v20_multisg2() {
+    echo "=== Building v20 multi-SG sweep ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v20_multisg2.cpp" \
+        -o "${BUILD_DIR}/gemm_v20_multisg2"
+    echo "  → ${BUILD_DIR}/gemm_v20_multisg2"
+}
+
+build_v20_best() {
+    echo "=== Building v20 best configs ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v20_best.cpp" \
+        -o "${BUILD_DIR}/gemm_v20_best"
+    echo "  → ${BUILD_DIR}/gemm_v20_best"
+}
+
 case "${1:-all}" in
     bench)   build_bench ;;
     bench16) build_bench_fp16 ;;
+    v20)     build_v20 ;;
+    v20t)    build_v20_tiles ;;
+    v20pf)   build_v20_pf ;;
+    v20msg)  build_v20_multisg ;;
+    v20ms2)  build_v20_multisg2 ;;
+    v20best) build_v20_best ;;
     verify)  build_verify ;;
+    vacc)    build_verify_acc ;;
     query)   build_query ;;
     all)
         build_bench
         build_bench_fp16
+        build_v20
+        build_v20_tiles
         build_verify
         build_query
         echo ""
         echo "=== Build complete ==="
         echo "Run BF16 bench:   ./scripts/run_bench.sh"
         echo "Run FP16 bench:   ./scripts/run_bench.sh fp16"
+        echo "Run v20 pipeline: IGC_ExtraOCLOptions='-cl-intel-256-GRF-per-thread' ./build/gemm_v20_pipeline 10 50"
         echo "Run verification: ./scripts/run_verify.sh"
         ;;
     clean)

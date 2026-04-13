@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================================================
-# Run correctness verification
+# Run accuracy verification (vs CPU reference, random seed=42)
 # ==========================================================================
 
 set -e
@@ -14,12 +14,15 @@ export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-o
 export IGC_VISAOptions="-perfmodel"
 export IGC_VectorAliasBBThreshold=10000
 
-BINARY="${ROOT_DIR}/build/verify_correctness"
+BINARY="${ROOT_DIR}/build/verify_accuracy"
 
 if [ ! -f "${BINARY}" ]; then
-    echo "Binary not found. Run ./scripts/build.sh first."
+    echo "Binary not found (${BINARY}). Run ./scripts/build.sh vacc first."
     exit 1
 fi
 
-echo "=== Running correctness verification ==="
+echo "=== Running accuracy verification (seed=42, CPU float32 reference) ==="
+echo "  GPU env: 256 GRF, -perfmodel, Threshold=10000"
+echo ""
+
 exec "${BINARY}"

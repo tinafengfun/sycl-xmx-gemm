@@ -9,20 +9,28 @@ A step-by-step demonstration of optimizing GEMM on **Intel Arc Pro B60** (Xe2 / 
 | 1 | `main` | Naive GEMM (one thread/output) | ~0.2 | — |
 | 2 | PR #1 | XMX `joint_matrix` single-tile | ~7.1 | — |
 | 3 | PR #2 | Multi-tile register blocking (2×2, 4×2) | ~34.7 | — |
-| **4** | **PR #4 (this branch)** | **BF16 VNNI + 4×4 blocking + prefetch + split-N** | **84.98** | **88.5%** |
+| 4 | PR #4 | BF16 VNNI + 4×4 blocking + prefetch + split-N | 84.98 | 88.5% |
+| **5** | **PR #5 (this branch)** | **Multi-SG work-groups + compiler tuning** | **89.77** | **90.7%** |
 
-### Stage 4 Key Results (BF16 on Intel Arc Pro B60)
+### Stage 5 Key Results (BF16 on Intel Arc Pro B60)
 
 Confirmed on 2026-04-13 with oneAPI 2025.3.2, driver 1.14.36300+8:
 
-| Problem Size | Method | TFLOPS | Utilization |
-|-------------|--------|-------:|:-----------:|
-| 8192 × 2048 × 4096 | Single kernel | **84.88** | 85.7% |
-| 4096 × 4096 × 4096 | Single kernel | **81.05** | 81.9% |
-| 8192 × 4096 × 4096 | Single kernel | **81.05** | 81.9% |
-| 8192 × 8192 × 4096 | Split-N (4×2048) | **84.91** | 85.8% |
-| 8192 × 8192 × 4096 | Split-N (2×4096) | **80.47** | 81.3% |
-| 8192 × 8192 × 4096 | Single kernel | 72.99 | 73.7% |
+| Problem Size | Config | Best TFLOPS | Avg TFLOPS | Utilization |
+|-------------|--------|----------:|----------:|:-----------:|
+| 8192 × 2048 × 4096 | 4 SGs 2×2 + pf | **89.77** | 88.65 | 90.7% |
+| 8192 × 4096 × 4096 | 8 SGs 4×2 + pf | **87.60** | 86.17 | 88.5% |
+| 4096 × 4096 × 4096 | 8 SGs 4×2 + pf | **87.62** | 86.27 | 88.5% |
+| 8192 × 8192 × 4096 | 8 SGs 4×2 + pf | **80.03** | 78.36 | 80.8% |
+| 8192 × 8192 × 8192 | 8 SGs 4×2 + pf | **79.87** | — | 80.7% |
+
+### Multi-SG Performance Breakdown (100 warmup, 500 iterations)
+
+| Config | 8192×2048 | 8192×4096 | 8192×8192 | 4096³ |
+|--------|-----------|-----------|-----------|-------|
+| 1 SG (baseline) | 85.90T | 80.87T | 73.31T | 81.31T |
+| 4 SGs (2×2) | **89.77T** | 87.57T | 79.64T | 86.80T |
+| 8 SGs (4×2) | 89.63T | **87.60T** | **80.03T** | **87.62T** |
 
 ## Hardware Target
 
@@ -41,67 +49,77 @@ Confirmed on 2026-04-13 with oneAPI 2025.3.2, driver 1.14.36300+8:
 | XMX Tile (BF16) | 8×16×16 |
 | XMX Tile (FP16) | 8×16×16 |
 | XMX Tile (INT8) | 8×16×32 |
-| XMX BF16 Peak | ~96 TFLOPS |
+| XMX BF16 Peak | ~99 TFLOPS |
 | Interface | PCIe Gen 5 x8 |
 | Display | 3× DP 2.1, 1× HDMI 2.1 |
 
 ## Quick Start
 
-> **Note**: To reproduce the Stage 4 peak results (80+ TFLOPS), check out the `feat/bf16-80t-xmx-gemm` branch:
+> **Note**: To reproduce the Stage 5 peak results (89+ TFLOPS), check out the `feat/bf16-80t-xmx-gemm` branch:
 > ```bash
 > git checkout feat/bf16-80t-xmx-gemm
 > ```
-> The `main` branch contains Stage 1-3 code. Stage 4 optimized kernels live on the feature branch.
+> The `main` branch contains Stage 1-3 code. Stages 4-5 optimized kernels live on the feature branch.
 
 ```bash
 # 1. Build all targets
 ./scripts/build.sh
 
-# 2. Run benchmark (8192×8192×4096, 100 warmup + 500 iters)
+# 2. Run Stage 4 benchmark (single-SG, 100 warmup + 500 iters)
 ./scripts/run_bench.sh           # BF16 (default)
 ./scripts/run_bench.sh fp16      # FP16
 ./scripts/run_bench.sh quick     # Quick test (10+50)
 
-# 3. Run correctness verification
+# 3. Run Stage 5 multi-SG benchmark (best configs, 100/500)
+./scripts/run_v20_best.sh
+
+# 4. Run correctness verification
 ./scripts/run_verify.sh
+
+# 5. Run accuracy verification (vs CPU reference, seed=42)
+./scripts/run_verify_accuracy.sh
 ```
 
 ### Manual Build
 
 ```bash
-# Stage 1-3 (original)
-icpx -fsycl -fsycl-targets=spir64_gen \
-  -Xs "-device bmg -options -cl-intel-enable-auto-large-GRF-mode" \
-  -fsycl-unnamed-lambda -std=c++17 -O2 \
-  gemm_sycl.cpp -o gemm_sycl
-
-# Stage 4 (BF16 80T+ benchmark)
+# Stage 4 (BF16 80T+ single-SG benchmark)
 icpx -fsycl -O3 -std=c++17 -fsycl-unnamed-lambda \
      -mllvm -inline-threshold=10000 \
      src/kernels/bench_bf16_80t.cpp -o bench_bf16_80t
 
-# Stage 4 (correctness verification)
+# Stage 5 (multi-SG best configs benchmark)
 icpx -fsycl -O3 -std=c++17 -fsycl-unnamed-lambda \
      -mllvm -inline-threshold=10000 \
-     src/tools/verify_correctness.cpp -o verify_correctness
+     src/kernels/gemm_v20_best.cpp -o gemm_v20_best
+
+# Stage 5 (accuracy verification)
+icpx -fsycl -O3 -std=c++17 -fsycl-unnamed-lambda \
+     -mllvm -inline-threshold=10000 \
+     src/tools/verify_accuracy.cpp -o verify_accuracy
 ```
 
 ### Run with GPU Configuration
 
 ```bash
+# Best config for Stage 5 (89.77 TFLOPS)
 export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
 export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"
 export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"
-export IGC_VectorAliasBBThreshold=100000000000
+export IGC_VISAOptions="-perfmodel"
+export IGC_VectorAliasBBThreshold=10000
 
-./build/bench_bf16_80t 100 500        # Full benchmark (100 warmup + 500 iters)
-./build/verify_correctness             # Correctness check
+# Stage 5 multi-SG benchmark
+./build/gemm_v20_best 100 500
 
-# Quick test (10+50 iterations)
-./scripts/run_bench.sh quick
+# Stage 4 single-SG benchmark
+./build/bench_bf16_80t 100 500
+
+# Accuracy verification
+./build/verify_accuracy
 ```
 
-> **Critical**: The 256 GRF mode (`-cl-intel-256-GRF-per-thread`) is **required** for Stage 4. Without it, register spilling reduces performance from 80+ TFLOPS to ~2 TFLOPS.
+> **Critical**: The 256 GRF mode (`-cl-intel-256-GRF-per-thread`) is **required**. Without it, register spilling reduces performance from 80+ TFLOPS to ~2 TFLOPS.
 
 ### Run in Docker
 
@@ -110,16 +128,17 @@ export IGC_VectorAliasBBThreshold=100000000000
 docker exec <container> bash -c "\
   cd /path/to/sycl-xmx-gemm && \
   bash scripts/build.sh && \
-  bash scripts/run_bench.sh quick"
+  bash scripts/run_v20_best.sh"
 
 # Or with manual env vars:
 docker exec <container> bash -c "\
   cd /path/to/sycl-xmx-gemm && \
-  export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
-  export IGC_ExtraOCLOptions='-cl-intel-256-GRF-per-thread'
-  export SYCL_PROGRAM_COMPILE_OPTIONS='-ze-opt-large-register-file -gline-tables-only'
-  export IGC_VectorAliasBBThreshold=100000000000
-  ./build/bench_bf16_80t 10 50"
+  export ONEAPI_DEVICE_SELECTOR=level_zero:gpu && \
+  export IGC_ExtraOCLOptions='-cl-intel-256-GRF-per-thread' && \
+  export SYCL_PROGRAM_COMPILE_OPTIONS='-ze-opt-large-register-file -gline-tables-only' && \
+  export IGC_VISAOptions='-perfmodel' && \
+  export IGC_VectorAliasBBThreshold=10000 && \
+  ./build/gemm_v20_best 10 50"
 ```
 
 ### Dump Kernel ISA
@@ -151,32 +170,109 @@ xpu-smi config -d 0 -t 0 --frequencyrange 2400,2400
 ├── src/
 │   ├── kernels/
 │   │   ├── bench_bf16_80t.cpp         # Stage 4: BF16 benchmark (80+ TFLOPS)
-│   │   └── bench_fp16_80t.cpp         # Stage 4: FP16 benchmark (80+ TFLOPS)
+│   │   ├── bench_fp16_80t.cpp         # Stage 4: FP16 benchmark (80+ TFLOPS)
+│   │   ├── gemm_v20_pipeline.cpp      # Stage 5: Pipeline restructuring experiments
+│   │   ├── gemm_v20_tiles.cpp         # Stage 5: Tile size sweep
+│   │   ├── gemm_v20_prefetch.cpp      # Stage 5: Prefetch distance sweep
+│   │   ├── gemm_v20_multisg.cpp       # Stage 5: Multi-SG initial experiments
+│   │   ├── gemm_v20_multisg2.cpp      # Stage 5: Multi-SG layout sweep (4×4 per SG)
+│   │   └── gemm_v20_best.cpp          # Stage 5: Best configs full benchmark
 │   └── tools/
 │       ├── verify_correctness.cpp      # Correctness verification (single + split-N)
+│       ├── verify_accuracy.cpp         # Accuracy verification (vs CPU reference, seed=42)
 │       └── query_matrix.cpp           # Query device XMX capabilities
 │
 ├── scripts/
 │   ├── build.sh                       # Build all targets
-│   ├── run_bench.sh                   # Run benchmark with GPU config
+│   ├── run_bench.sh                   # Run Stage 4 benchmark
+│   ├── run_v20_best.sh                # Run Stage 5 best configs benchmark
 │   ├── run_verify.sh                  # Run correctness tests
-│   └── run_env_sweep.sh              # Sweep IGC env var configurations
+│   ├── run_verify_accuracy.sh         # Run accuracy verification
+│   ├── run_env_sweep.sh               # Sweep IGC env var configurations
+│   └── run_env_sweep_v2.sh            # Compiler config comparison sweep
 │
 ├── docs/
 │   ├── xmx_tuning.md                 # Intel XMX tuning reference
 │   ├── github_optimization.md         # Optimization strategies from GitHub
 │   └── xmx_deepen.md                  # Deep dive into XMX internals
 │
+├── reports/
+│   └── isa_dump_85t/                  # ISA dump and analysis for 85T kernel
+│
 └── skills/
     └── intel-gpu-optimizer/           # Reusable optimization knowledge
         ├── SKILL.md                   # Overview & decision tree
-        ├── 01_optimization_techniques.md  # Memory, sub-groups, occupancy
-        ├── 02_code_templates.md           # Kernel templates
-        ├── 03_benchmarking.md             # Timing, FLOPS, compilation
-        └── 04_xmx_matrix.md              # XMX BF16 optimization guide
+        ├── 01_optimization_techniques.md
+        ├── 02_code_templates.md
+        ├── 03_benchmarking.md
+        └── 04_xmx_matrix.md
 ```
 
-## Stage 4: BF16 80+ TFLOPS — Optimization Journey
+## Stage 5: Multi-SG 89+ TFLOPS — Optimization Journey
+
+### Optimization Steps and Impact (Stage 4 → 5)
+
+| # | Optimization | Impact | Note |
+|---|-------------|--------|------|
+| 1 | **Compiler config tuning** (`-perfmodel`, `Threshold=10000`) | +1.0T | `IGC_VISAOptions="-perfmodel"` +0.17T, `VectorAliasBBThreshold=10000` +0.5T |
+| 2 | **Multi-SG 4 SGs (2×2)** with prefetch | **+4.0T** | Key optimization: more concurrent threads, better EU utilization |
+| 3 | **Multi-SG 8 SGs (4×2)** with prefetch | **+3.7T** | Better for large N, more consistent across sizes |
+| 4 | **Prefetch + multi-SG synergy** | +4T | Prefetch hurts single-SG (-2T) but helps multi-SG (+4T) |
+
+### Key Technical Findings
+
+1. **Multi-SG with 4×4 tiles per SG is the breakthrough** — Each SG independently computes 4×4 register tiles (32×64 output block). Multiple SGs increase concurrent threads without register spilling — each SG still gets full 256 GRF allocation.
+
+2. **Balanced 2×2 layout is optimal for 4 SGs** — The 2×2 grid layout outperforms pure-M (4×1) or pure-N (1×4) arrangements because it balances M and N dimension work per work-group.
+
+3. **Prefetch interacts with multi-SG** — For single-SG, prefetch hurts performance (-2T). For multi-SG, prefetch is essential (+4T). More threads competing for memory bandwidth makes software prefetch valuable.
+
+4. **4-8 SGs is the sweet spot** — 16+ SGs shows diminishing returns, overhead exceeds benefit. The optimal range is 4 SGs (2×2) to 8 SGs (4×2) depending on problem size.
+
+5. **Compiler flags matter** — `IGC_VISAOptions="-perfmodel"` adds ~0.17T, `IGC_VectorAliasBBThreshold=10000` (vs default 100B) adds ~0.5T. Using the wrong `VectorAliasBBThreshold` (100B vs 10K) makes a measurable difference.
+
+### Multi-SG Architecture
+
+```
+Work-group (WG) layout for 4 SGs 2×2:
+
+  ┌─────────────────────────────────────────┐
+  │  SG0 (2×4 tiles)  │  SG1 (2×4 tiles)  │
+  │  32×64 output     │  32×64 output      │
+  ├───────────────────┼────────────────────┤
+  │  SG2 (2×4 tiles)  │  SG3 (2×4 tiles)  │
+  │  32×64 output     │  32×64 output      │
+  └─────────────────────────────────────────┘
+  ←── 64 output cols ──→←── 64 output cols ──→
+  Total WG output: 64 rows × 128 cols
+
+- No SLM sharing — SGs are completely independent
+- sg_id determines which output block each SG computes
+- Each SG gets full 256 GRF allocation (no register spilling)
+```
+
+### Optimization Attempts Summary (Stage 5)
+
+| Approach | Result | Why |
+|----------|--------|-----|
+| **4 SGs 2×2 with prefetch** | **+4T (89.77T)** | More concurrent threads, better EU utilization |
+| **8 SGs 4×2 with prefetch** | **+3.7T (89.63T)** | Same benefit, better for large N |
+| Compiler config (`-perfmodel`, `Threshold=10000`) | +1T | Better instruction scheduling |
+| Software pipelining (double-buffer) | -13T | Compiler already schedules well |
+| Interleaved load-compute | -17T | Reduces ILP opportunity |
+| No prefetch (single SG) | -2T | Prefetch helps single SG slightly |
+| Tile sizes other than 4×4 | -22 to -50T | 4×4 is optimal for register usage |
+| Multi-SG with small tiles | -30T | Register starvation |
+| 16+ SGs | -2T vs 4 SGs | Thread management overhead |
+| Prefetch distance sweep (k+32 to k+512) | All worse for single-SG | Hardware prefetch sufficient |
+| Multi-stage prefetch (2-3 distances) | Worse | Over-prefetching |
+
+### Remaining Gap to oneDNN (~95T)
+
+- Current: 89.77T vs oneDNN: ~95T → gap of ~5T
+- Possible avenues: SLM sharing of A tiles between SGs, K-parallel decomposition, ISA-level instruction scheduling
+
+## Stage 4: BF16 80+ TFLOPS — Single-SG Optimization
 
 ### Optimization Steps and Impact
 
@@ -189,7 +285,16 @@ xpu-smi config -d 0 -t 0 --frequencyrange 2400,2400
 | 5 | **256 GRF mode** (large register file) | Essential (128 GRF → 2 TFLOPS) |
 | 6 | **Split-N with per-chunk B packing** | +11 TFLOPS for large N |
 
-### Key Technical Findings
+### Stage 4 Key Results
+
+| Problem Size | Method | TFLOPS | Utilization |
+|-------------|--------|-------:|:-----------:|
+| 8192 × 2048 × 4096 | Single kernel | **84.98** | 88.5% |
+| 4096 × 4096 × 4096 | Single kernel | **81.05** | 81.9% |
+| 8192 × 4096 × 4096 | Single kernel | **81.05** | 81.9% |
+| 8192 × 8192 × 4096 | Split-N (4×2048) | **84.91** | 85.8% |
+
+### Key Technical Findings (Stage 4)
 
 1. **8×16 DPAS atom is optimal** — The device reports 32×64×16 support, but the compiler generates scalar fallback code. 8×16 atoms composed into 4×4 = 16 tiles achieves 32×64 coverage via 16 separate DPAS instructions.
 
@@ -199,9 +304,7 @@ xpu-smi config -d 0 -t 0 --frequencyrange 2400,2400
 
 4. **`-ffast-math` hurts** — Counter-intuitively reduces performance by ~8 TFLOPS on this workload.
 
-5. **Multi-SG work-groups don't help** — Correctly indexed multi-SG (16 sub-groups per WG) gives 64 TFLOPS, worse than single-SG's 73 TFLOPS. The false 81.78T result from earlier was due to an indexing bug.
-
-### Negative Results (What Didn't Work)
+### Negative Results (Stage 4)
 
 | Attempt | Result | Reason |
 |---------|--------|--------|
@@ -227,11 +330,11 @@ FP16 performance matches BF16 within ±0.6 TFLOPS across all sizes — the optim
 | Split-N=2048 (4 chunks) | **85.17** | 84.58 | +0.59 |
 | Split-N=4096 (2 chunks) | 80.71 | 80.65 | +0.06 |
 
-FP16 slightly edges BF16 at the split-N=2048 sweet spot (85.17 vs 84.58 TFLOPS).
-
 ## Correctness Verification
 
-All kernels verified against CPU reference with random BF16 data (tolerance: 1% relative error):
+### Functional Correctness (tolerance: 1% relative error)
+
+All kernels verified against CPU reference with random BF16 data:
 
 ```
 Test 1: 512×512×512 single kernel            PASS (max_rel_err=0.18%)
@@ -241,6 +344,23 @@ Test 4: 1024×1024×1024 split-N=512 (2 chunks) PASS (max_rel_err=0.36%)
 Test 5: 1024×2048×512 split-N=1024 (2 chunks) PASS (max_rel_err=0.12%)
 Test 6: 1024×1024×1024 split-N=256 (4 chunks) PASS (max_rel_err=0.20%)
 ```
+
+### Accuracy Verification (seed=42, CPU float32 reference)
+
+All multi-SG kernel variants verified against CPU float32 reference with BF16 inputs. BF16 has 7-bit mantissa → expected per-op rounding ~2⁻⁸ ≈ 0.39%. Accumulated over K steps, typical max error ≈ √K × 0.39%.
+
+**All 24 tests PASS** (3 kernels × 8 sizes). All kernels produce identical results. Zero errors exceeding 1%.
+
+| Problem Size | Max Rel Error | Mean Rel Error | Max Abs Error | Errs >1% |
+|-------------|:------------:|:-------------:|:------------:|:--------:|
+| 512³ | 0.022% | 0.004% | 0.00048 | 0 |
+| 1024³ | 0.045% | 0.006% | 0.00098 | 0 |
+| 1024×2048×512 | 0.031% | 0.004% | 0.00049 | 0 |
+| 2048³ | 0.090% | 0.008% | 0.00098 | 0 |
+| 2048×1024×4096 | 0.213% | 0.017% | 0.00391 | 0 |
+| 4096³ | 0.221% | 0.012% | 0.00195 | 0 |
+| 8192×2048×4096 | 0.230% | 0.012% | 0.00195 | 0 |
+| 8192×4096×4096 | 0.403% | 0.017% | 0.00391 | 0 |
 
 ## ISA Analysis (85 TFLOPS Kernel)
 
@@ -298,12 +418,6 @@ The baseline kernel (4×4 tiles, k-step=32, single-SG) was JIT-compiled with 256
 | B-matrix load | 8 | d16 | 4 cols × 2 K sub-steps (VNNI packed) |
 | C-matrix store | 16 | d32 | 4×4 accumulator tiles |
 | **Total SENDs/iter** | **18 loads + 0 stores** | | (stores in epilogue only) |
-
-### Scoreboard Token Usage
-- Tokens $3–$21 used (19 unique tokens)
-- Two `sync.allwr` barriers split 16 data loads into batches of 10+5
-- Tokens $6, $9 use `.dst` dependency (dpas waits directly) instead of barrier
-- `tokenReuseCount: 0` — no token recycling within loop body
 
 ### Performance Bottleneck Analysis (from PTI-GPU profiling)
 
