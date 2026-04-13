@@ -4,7 +4,7 @@
 **Hardware**: Intel Arc Pro B60 (BMG-G21, Xe2), 20 Xe Cores, 2400 MHz
 **Software**: oneAPI 2025.3.2, driver 1.14.36300+8, IGC git-hash `2c5a85ae`
 **Kernel**: Single-SG, 4×4 register blocking, k-step=32, L1 prefetch
-**Source**: `gemm_baseline_only.cpp` (identical to `bench_bf16_80t.cpp` baseline)
+**Source**: `gemm_baseline_source.cpp` (snapshot of `src/kernels/bench_bf16_80t.cpp` baseline kernel)
 **Performance**: 84.88 TFLOPS @ 8192×2048×4096 (85.7% of 99T theoretical peak)
 
 ---
@@ -236,6 +236,7 @@ C-store:     shape=1x16x8  (d32, float output)                 → 128 bytes × 
 
 | File | Description |
 |------|-------------|
+| `gemm_baseline_source.cpp` | Source code snapshot used to generate this ISA dump |
 | `*_simd16_entry_0001.asm` | Main kernel ISA (Xe2 assembly) — the primary analysis target |
 | `*_simd16_entry_0001.isaasm` | Binary ISA encoding |
 | `*_simd16_entry_0001.visaasm` | VISA intermediate representation |
@@ -244,3 +245,22 @@ C-store:     shape=1x16x8  (d32, float output)                 → 128 bytes × 
 | `*_internal_options.txt` | IGC internal options |
 | `*_cmd.txt` | Original compilation command |
 | `*.zeinfo` | Kernel metadata (Zebin format) |
+
+## 10. Reproducing the ISA Dump
+
+```bash
+# 1. Build the baseline kernel
+cd sycl-xmx-gemm
+bash scripts/build.sh
+
+# 2. Run with ISA dump enabled
+export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
+export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread -dumpvisa -dumpschedule"
+export IGC_ShaderDumpEnable=1
+export IGC_DumpToCurrentDir=1
+export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"
+export IGC_VectorAliasBBThreshold=100000000000
+
+./build/bench_bf16_80t 10 50
+# ASM files will appear as OCL_asm*_simd16_entry_*.asm in current directory
+```
