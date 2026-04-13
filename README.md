@@ -13,14 +13,16 @@ A step-by-step demonstration of optimizing GEMM on **Intel Arc Pro B60** (Xe2 / 
 
 ### Stage 4 Key Results (BF16 on Intel Arc Pro B60)
 
+Confirmed on 2026-04-13 with oneAPI 2025.3.2, driver 1.14.36300+8:
+
 | Problem Size | Method | TFLOPS | Utilization |
 |-------------|--------|-------:|:-----------:|
-| 8192 × 2048 × 4096 | Single kernel | **84.98** | 88.5% |
-| 4096 × 4096 × 4096 | Single kernel | **81.25** | 84.6% |
-| 8192 × 4096 × 4096 | Single kernel | **81.03** | 84.4% |
-| 8192 × 8192 × 4096 | Split-N (4 chunks) | **84.58** | 88.1% |
-| 8192 × 8192 × 4096 | Split-N (2 chunks) | **80.65** | 84.0% |
-| 8192 × 8192 × 4096 | Single kernel | 73.14 | 76.2% |
+| 8192 × 2048 × 4096 | Single kernel | **84.88** | 85.7% |
+| 4096 × 4096 × 4096 | Single kernel | **81.05** | 81.9% |
+| 8192 × 4096 × 4096 | Single kernel | **81.05** | 81.9% |
+| 8192 × 8192 × 4096 | Split-N (4×2048) | **84.91** | 85.8% |
+| 8192 × 8192 × 4096 | Split-N (2×4096) | **80.47** | 81.3% |
+| 8192 × 8192 × 4096 | Single kernel | 72.99 | 73.7% |
 
 ## Hardware Target
 
@@ -92,14 +94,50 @@ export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"
 export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"
 export IGC_VectorAliasBBThreshold=100000000000
 
-./bench_bf16_80t 100 500        # Full benchmark (100 warmup + 500 iters)
-./verify_correctness             # Correctness check
+./build/bench_bf16_80t 100 500        # Full benchmark (100 warmup + 500 iters)
+./build/verify_correctness             # Correctness check
 
-# Original Stage 1-3
-./gemm_sycl 8192 8192 4096 20   # FP16/INT8/BF16 multi-path
+# Quick test (10+50 iterations)
+./scripts/run_bench.sh quick
 ```
 
-> **Critical**: The 256 GRF mode (`-cl-intel-256-GRF-per-thread`) is **required** for Stage 4. Without it, register spilling reduces performance from 80+ TFLOPS to 2 TFLOPS.
+> **Critical**: The 256 GRF mode (`-cl-intel-256-GRF-per-thread`) is **required** for Stage 4. Without it, register spilling reduces performance from 80+ TFLOPS to ~2 TFLOPS.
+
+### Run in Docker
+
+```bash
+# Build and run inside the oneAPI Docker container
+docker exec <container> bash -c "\
+  cd /path/to/sycl-xmx-gemm && \
+  bash scripts/build.sh && \
+  bash scripts/run_bench.sh quick"
+
+# Or with manual env vars:
+docker exec <container> bash -c "\
+  cd /path/to/sycl-xmx-gemm && \
+  export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
+  export IGC_ExtraOCLOptions='-cl-intel-256-GRF-per-thread'
+  export SYCL_PROGRAM_COMPILE_OPTIONS='-ze-opt-large-register-file -gline-tables-only'
+  export IGC_VectorAliasBBThreshold=100000000000
+  ./build/bench_bf16_80t 10 50"
+```
+
+### Dump Kernel ISA
+
+```bash
+# Add IGC dump flags to generate .asm files in current directory
+export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread -dumpvisa -dumpschedule"
+export IGC_ShaderDumpEnable=1
+export IGC_DumpToCurrentDir=1
+# Run benchmark → OCL_asm*_simd16_entry_*.asm will appear
+```
+
+### GPU Power Configuration (Optional)
+
+```bash
+# Lock GPU frequency for reproducible benchmarks
+xpu-smi config -d 0 -t 0 --frequencyrange 2400,2400
+```
 
 ## Project Structure
 
@@ -203,6 +241,79 @@ Test 4: 1024×1024×1024 split-N=512 (2 chunks) PASS (max_rel_err=0.36%)
 Test 5: 1024×2048×512 split-N=1024 (2 chunks) PASS (max_rel_err=0.12%)
 Test 6: 1024×1024×1024 split-N=256 (4 chunks) PASS (max_rel_err=0.20%)
 ```
+
+## ISA Analysis (85 TFLOPS Kernel)
+
+The baseline kernel (4×4 tiles, k-step=32, single-SG) was JIT-compiled with 256 GRF and disassembled.
+
+### Kernel Configuration
+- **Platform**: XE2 (BMG-G21)
+- **Thread config**: numGRF=256, numAcc=8, numSWSB=32
+- **Instruction count**: 828
+- **DPAS atom**: `dpas.8x8` (BF16, SIMD16)
+- **singlePipeAtOneDistNum**: 15 (pipeline bubbles)
+- **Bank conflicts**: 0
+
+### Pipeline Structure (Per K-Step = 32)
+
+```
+┌─ Loop header: k += 32, check k < K ─────────────────────────────┐
+│                                                                   │
+│  ┌─ Prefetch phase ──────────────────────────────────────────┐   │
+│  │  2× load_block2d.d16 → null (L1 prefetch, A+B next k)    │   │
+│  │  tokens: $4, $5                                           │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ Address computation ─────────────────────────────────────┐   │
+│  │  ~60 ALU instructions (block2d descriptor setup)          │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ Data load batch 1 ───────────────────────────────────────┐   │
+│  │  10× load_block2d (4 A d32 + 5 B d16 + 1 A d32)          │   │
+│  │  tokens: $6,$7,$8,$9,$10,$11,$12,$13,$14,$15              │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ sync.allwr #1 ($3,$7,$8,$11,$12,$13,$14,$15) ───────────┐   │
+│  │  16× dpas.8x8 (first k-sub-step: k and k+16)             │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ Data load batch 2 ───────────────────────────────────────┐   │
+│  │  5× load_block2d (3 A d32 + 2 B d16)                     │   │
+│  │  tokens: $17,$18,$19,$20,$21                               │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ sync.allwr #2 ($3,$10,$16,$17,$18,$19,$20,$21) ─────────┐   │
+│  │  16× dpas.8x8 (second k-sub-step: k+16 and k+32)         │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+└─ Branch back to loop ────────────────────────────────────────────┘
+```
+
+### Load Breakdown
+
+| Type | Count | Data Width | Purpose |
+|------|------:|:----------:|---------|
+| Prefetch (null dst) | 2 | d16 | L1 hint for next k-block A+B |
+| A-matrix load | 8 | d32 | 4 rows × 2 K sub-steps |
+| B-matrix load | 8 | d16 | 4 cols × 2 K sub-steps (VNNI packed) |
+| C-matrix store | 16 | d32 | 4×4 accumulator tiles |
+| **Total SENDs/iter** | **18 loads + 0 stores** | | (stores in epilogue only) |
+
+### Scoreboard Token Usage
+- Tokens $3–$21 used (19 unique tokens)
+- Two `sync.allwr` barriers split 16 data loads into batches of 10+5
+- Tokens $6, $9 use `.dst` dependency (dpas waits directly) instead of barrier
+- `tokenReuseCount: 0` — no token recycling within loop body
+
+### Performance Bottleneck Analysis (from PTI-GPU profiling)
+
+| Stall Type | % Cycles | Cause |
+|-----------|--------:|-------|
+| SBID | 9–13.5% | 18 concurrent load_block2d consuming scoreboard entries |
+| INSTFETCH | 5–7% | 828 instructions exceeds ICache capacity |
+| ALUWR | 4–5% | DPAS write-back latency (inherent) |
+| SENDWR | 2–4% | SEND dispatch wait |
+| XVE Active | ~62% | Only 62% of cycles doing useful work |
 
 ## References
 
