@@ -13,9 +13,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <cmath>
-#include <vector>
 
 namespace matrix = sycl::ext::oneapi::experimental::matrix;
 using bf16 = sycl::ext::oneapi::bfloat16;
@@ -41,6 +39,14 @@ double bench(sycl::queue& q, int M, int N, int K,
     auto *dA=sycl::malloc_device<bf16>(szA,q);
     auto *dBv=sycl::malloc_device<bf16>(szBv,q);
     auto *dC=sycl::malloc_device<float>(szC,q);
+    if (!dA||!dBv||!dC) {
+        printf("  %-55s OOM\n", tag);
+        if (dA) sycl::free(dA,q);
+        if (dBv) sycl::free(dBv,q);
+        if (dC) sycl::free(dC,q);
+        return 1e9;
+    }
+    // C not zeroed: kernel writes every output element (no beta*C accumulation)
     q.fill(dA, bf16(1.0f), szA); q.fill(dBv, bf16(1.0f), szBv); q.wait();
 
     int wg_m = M/WG_OUT_M, wg_n = N/WG_OUT_N;
@@ -80,6 +86,8 @@ double bench(sycl::queue& q, int M, int N, int K,
                                 }
                             }
                         }
+                        // NOTE: A/B tiles and load/mad kept on single lines to preserve
+                        // compiler instruction scheduling. Reformatting changed TFLOPS.
                         matrix::joint_matrix<sycl::sub_group,bf16,matrix::use::a,TM,TK,matrix::layout::row_major> sub_a0[MT_M],sub_a1[MT_M];
                         matrix::joint_matrix<sycl::sub_group,bf16,matrix::use::b,TK,TN,matrix::layout::ext_intel_packed> sub_b0[MT_N],sub_b1[MT_N];
                         for(int i=0;i<MT_M;i++){matrix::joint_matrix_load(sg,sub_a0[i],pA+(out_m+i*TM)*K+k,K);matrix::joint_matrix_load(sg,sub_a1[i],pA+(out_m+i*TM)*K+(k+TK),K);}
@@ -94,6 +102,15 @@ double bench(sycl::queue& q, int M, int N, int K,
 
     double flops=2.0*(double)M*N*K;
     for(int i=0;i<warmup;i++) launch(); q.wait();
+
+    // Quick sanity check: with A=B=1.0, C[i][j] should equal K
+    {
+        float check;
+        q.memcpy(&check, dC, sizeof(float)).wait();
+        if (std::abs(check - (float)K) > 1.0f)
+            printf("  %-55s VERIFY FAIL: got %f, expected %f\n", tag, check, (float)K);
+    }
+
     double best_ms=1e9, total_ms=0;
     for(int i=0;i<iters;i++){
         auto ev=launch(); ev.wait();

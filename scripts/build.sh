@@ -59,6 +59,14 @@ build_verify_slm() {
     echo "  → ${BUILD_DIR}/verify_slm"
 }
 
+build_verify_v21exp() {
+    echo "=== Building v21 experiments verification ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/tools/verify_v21_experiments.cpp" \
+        -o "${BUILD_DIR}/verify_v21_experiments"
+    echo "  → ${BUILD_DIR}/verify_v21_experiments"
+}
+
 build_bench_fp16() {
     echo "=== Building FP16 GEMM benchmark ==="
     icpx ${COMMON_FLAGS} \
@@ -131,6 +139,14 @@ build_v21_hybrid() {
     echo "  → ${BUILD_DIR}/gemm_v21_hybrid"
 }
 
+build_kparallel() {
+    echo "=== Building K-parallel benchmark ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/bench_kparallel.cpp" \
+        -o "${BUILD_DIR}/bench_kparallel"
+    echo "  → ${BUILD_DIR}/bench_kparallel"
+}
+
 build_v21_best() {
     echo "=== Building v21 best configs ==="
     icpx ${COMMON_FLAGS} \
@@ -151,9 +167,11 @@ case "${1:-all}" in
     v21slm)  build_v21_slm ;;
     v21hyb)  build_v21_hybrid ;;
     v21best) build_v21_best ;;
+    kpar)    build_kparallel ;;
     verify)  build_verify ;;
     vacc)    build_verify_acc ;;
     vslm)    build_verify_slm ;;
+    v21exp)  build_verify_v21exp ;;
     query)   build_query ;;
     all)
         build_bench

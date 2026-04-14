@@ -380,6 +380,27 @@ oneDNN achieves ~95T via: native JIT (not SYCL), SG=8, K-parallel with atomics,
 SLM with Block2D cooperative loads, 16-64 SGs/WG, explicit software pipeline.
 Most techniques inaccessible from SYCL — gap is primarily compiler limitations.
 
+### SG=8 with joint_matrix (v21d) — NOT SUPPORTED
+
+BMG SYCL runtime throws exception: "Sub-group size 8 is not supported on the device".
+SG=8 is a oneDNN JIT-only feature — not accessible from SYCL joint_matrix API.
+This eliminates the occupancy-doubling approach that oneDNN uses.
+
+### K-parallel Decomposition (v21e) — WORSE THAN MONOLITHIC
+
+Correctness verified (max_rel=0.02%). Benchmark results (10/50):
+
+| Size | Monolithic | K-par 2 chunks | K-par 4 chunks |
+|------|:---------:|:--------------:|:--------------:|
+| 8192×2048×4096 | **89.43T** | 70.82T | 57.72T |
+| 8192×4096×4096 | **87.34T** | 70.66T | 51.12T |
+| 8192×8192×4096 | **79.43T** | 71.57T | 61.19T |
+| 4096³ | **86.73T** | 69.96T | 57.25T |
+
+**Why**: Kernel launch overhead (memset + launch per chunk), B re-streamed from global
+memory per chunk, CPU-side reduction. oneDNN avoids this via device-side atomic reduction
+and K-parallel for occupancy — not viable from SYCL.
+
 ---
 
 ## Current Best (Updated 2026-04-14)
