@@ -330,7 +330,64 @@ IGC_VectorAliasBBThreshold=10000
 
 ### Remaining Gap to oneDNN (~95T)
 - Current: 89.77T vs oneDNN: ~95T → gap of ~5T
-- Possible avenues: SLM sharing of A tiles between SGs, K-parallel decomposition, ISA-level instruction scheduling
+- Possible avenues: SG=8 occupancy, K-parallel decomposition, SLM with group_load/group_store
+
+---
+
+## Stage 6: Further Optimization Attempts (v21)
+
+### SLM Tiling (v21a) — CATASTROPHIC FAILURE
+
+Tested SLM-based cooperative loading on BMG. SLM per XeCore = **128 KB** (not 256 KB as documented).
+
+| Config | KCache2 | SLM/WG | TFLOPS | Delta |
+|--------|:-------:|-------:|-------:|------:|
+| 4SG 2×2 noslm | — | 0 | **89.60** | baseline |
+| 4SG 2×2 SLM | 32 | 12KB | 3.78 | -85.82 |
+| 4SG 2×2 SLM | 64 | 24KB | 2.62 | -86.98 |
+| 4SG 2×2 SLM | 128 | 48KB | 1.42 | -88.18 |
+| 8SG 4×2 SLM | 32 | 16KB | 4.79 | -84.81 |
+| 8SG 4×2 SLM | 64 | 32KB | 4.34 | -85.26 |
+| 8SG 4×2 SLM | 128 | 64KB | 1.98 | -87.62 |
+
+**Why**: Element-by-element scalar cooperative loading ~24× slower than global Block2D loads.
+oneDNN uses native JIT Block2D → SLM transfers not available in SYCL.
+
+### Prefetch Targeting (v21b) — NO IMPROVEMENT (false positive in quick mode)
+
+Quick (10/50) showed B-only pf at 90.34T. Full (100/500) revealed it was warmup artifact:
+
+| Config | Quick | Full | Delta |
+|--------|:---:|:---:|:---:|
+| 4SG 2×2 A+B pf | 88.58T | **89.77T** | — |
+| 4SG 4×1 B-only pf | 90.34T | 86.58T | **-3.19T** |
+| 8SG 4×2 B-only pf | 90.06T | 86.79T | -2.98T |
+
+**Lesson**: Quick-mode results can be misleading. Always verify with 100/500.
+
+### k-step=64 Register Blocking (v21c) — REGISTER SPILL
+
+| Config | k-step | TFLOPS | Why |
+|--------|:------:|-------:|-----|
+| 4SG 2×2 4×4 tiles | 32 | **89.77** | baseline |
+| 4SG 2×2 4×4 tiles | 64 | 1.49 | Spill=512B |
+| 4SG 2×2 4×2 tiles | 64 | 71.76 | Less spill, but fewer accumulators |
+| 4SG 2×2 4×2 tiles | 32 | 59.01 | Fewer accumulators |
+
+### oneDNN Analysis
+
+oneDNN achieves ~95T via: native JIT (not SYCL), SG=8, K-parallel with atomics,
+SLM with Block2D cooperative loads, 16-64 SGs/WG, explicit software pipeline.
+Most techniques inaccessible from SYCL — gap is primarily compiler limitations.
+
+---
+
+## Current Best (Updated 2026-04-14)
+
+- **BF16 peak**: `89.77 TFLOPS` at 8192×2048×4096 (4 SGs 2×2 + A+B pf)
+- **Best across all sizes**: 8 SGs 4×2 + A+B pf (most consistent)
+- Best kernel: `src/kernels/gemm_v20_best.cpp`
+- Runtime: `ONEAPI_DEVICE_SELECTOR=level_zero:gpu`, `IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"`, `SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"`, `IGC_VISAOptions="-perfmodel"`, `IGC_VectorAliasBBThreshold=10000`
 
 ## Update Rule (for every new optimization)
 

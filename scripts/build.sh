@@ -51,6 +51,14 @@ build_verify_acc() {
     echo "  → ${BUILD_DIR}/verify_accuracy"
 }
 
+build_verify_slm() {
+    echo "=== Building SLM verification ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/tools/verify_slm.cpp" \
+        -o "${BUILD_DIR}/verify_slm"
+    echo "  → ${BUILD_DIR}/verify_slm"
+}
+
 build_bench_fp16() {
     echo "=== Building FP16 GEMM benchmark ==="
     icpx ${COMMON_FLAGS} \
@@ -107,6 +115,30 @@ build_v20_best() {
     echo "  → ${BUILD_DIR}/gemm_v20_best"
 }
 
+build_v21_slm() {
+    echo "=== Building v21 SLM benchmark ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v21_slm.cpp" \
+        -o "${BUILD_DIR}/gemm_v21_slm"
+    echo "  → ${BUILD_DIR}/gemm_v21_slm"
+}
+
+build_v21_hybrid() {
+    echo "=== Building v21 hybrid benchmark ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v21_hybrid.cpp" \
+        -o "${BUILD_DIR}/gemm_v21_hybrid"
+    echo "  → ${BUILD_DIR}/gemm_v21_hybrid"
+}
+
+build_v21_best() {
+    echo "=== Building v21 best configs ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/gemm_v21_best.cpp" \
+        -o "${BUILD_DIR}/gemm_v21_best"
+    echo "  → ${BUILD_DIR}/gemm_v21_best"
+}
+
 case "${1:-all}" in
     bench)   build_bench ;;
     bench16) build_bench_fp16 ;;
@@ -116,8 +148,12 @@ case "${1:-all}" in
     v20msg)  build_v20_multisg ;;
     v20ms2)  build_v20_multisg2 ;;
     v20best) build_v20_best ;;
+    v21slm)  build_v21_slm ;;
+    v21hyb)  build_v21_hybrid ;;
+    v21best) build_v21_best ;;
     verify)  build_verify ;;
     vacc)    build_verify_acc ;;
+    vslm)    build_verify_slm ;;
     query)   build_query ;;
     all)
         build_bench
