@@ -1,0 +1,13 @@
+Loop 1 @ level 1: 264 total, 0 fill, 0 spill, 0 subroutine calls
+Kernel name: OCL_asm7b1f6d582d6091ee_simd16_entry_0003
+ # BBs : 8
+ # Asm Insts: 765
+ # RA Iters = 1
+ Spill Size = 0
+ # Spills: 0
+ # Fills : 0
+Total dyn inst: 3141
+Fill dyn inst: 0
+Spill dyn inst: 0
+Percent Fill/Total dyn inst: 0.000000
+LL1(#1): {S-0, F-0}, 

@@ -1,0 +1,376 @@
+; ------------------------------------------------
+; OCL_asmea89a4472ab535eb_beforeUnification.ll
+; ------------------------------------------------
+target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v24:32:32-v32:32:32-v48:64:64-v64:64:64-v96:128:128-v128:128:128-v192:256:256-v256:256:256-v512:512:512-v1024:1024:1024"
+target triple = "spir64-unknown-unknown"
+
+%"class.sycl::_V1::range" = type { %"class.sycl::_V1::detail::array" }
+%"class.sycl::_V1::detail::array" = type { [1 x i64] }
+%class.__generated_ = type <{ i8 addrspace(1)*, %"class.sycl::_V1::ext::oneapi::bfloat16", [6 x i8] }>
+%"class.sycl::_V1::ext::oneapi::bfloat16" = type { i16 }
+%structtype = type { i16 }
+
+; Function Attrs: nounwind
+define spir_kernel void @_ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE(%"class.sycl::_V1::range"* byval(%"class.sycl::_V1::range") align 8 %0, %class.__generated_* byval(%class.__generated_) align 8 %1) #0 !kernel_arg_addr_space !280 !kernel_arg_access_qual !281 !kernel_arg_type !282 !kernel_arg_type_qual !283 !kernel_arg_base_type !282 !kernel_arg_name !283 !spirv.ParameterDecorations !284 {
+  %3 = bitcast %"class.sycl::_V1::range"* %0 to i64*
+  %4 = load i64, i64* %3, align 8
+  %5 = bitcast %class.__generated_* %1 to i16 addrspace(4)**
+  %6 = load i16 addrspace(4)*, i16 addrspace(4)** %5, align 8
+  %7 = bitcast %class.__generated_* %1 to i16*
+  %8 = getelementptr inbounds i16, i16* %7, i64 4
+  %9 = load i16, i16* %8, align 8
+  %10 = call spir_func i64 @_Z33__spirv_BuiltInGlobalInvocationIdi(i32 0) #2
+  %11 = call spir_func i64 @_Z25__spirv_BuiltInGlobalSizei(i32 0) #2
+  %12 = icmp ult i64 %10, %4
+  br label %13
+
+13:                                               ; preds = %16, %2
+  %14 = phi i64 [ %10, %2 ], [ %21, %16 ]
+  %15 = phi i1 [ %12, %2 ], [ %20, %16 ]
+  br i1 %15, label %16, label %22
+
+16:                                               ; preds = %13
+  %17 = icmp ult i64 %14, 2147483648
+  call void @llvm.assume(i1 %17)
+  %18 = getelementptr inbounds i16, i16 addrspace(4)* %6, i64 %14
+  store i16 %9, i16 addrspace(4)* %18, align 2
+  %19 = add i64 %14, %11
+  %20 = icmp ult i64 %19, %4
+  %21 = select i1 %20, i64 %19, i64 %10
+  br label %13
+
+22:                                               ; preds = %13
+  ret void
+}
+
+; Function Attrs: inaccessiblememonly nocallback nofree nosync nounwind willreturn
+declare void @llvm.assume(i1 noundef) #1
+
+; Function Attrs: nounwind
+define spir_kernel void @_ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_(i16 addrspace(1)* %0, %"class.sycl::_V1::ext::oneapi::bfloat16"* byval(%"class.sycl::_V1::ext::oneapi::bfloat16") align 2 %1) #0 !kernel_arg_addr_space !3 !kernel_arg_access_qual !281 !kernel_arg_type !288 !kernel_arg_type_qual !283 !kernel_arg_base_type !288 !kernel_arg_name !283 !spirv.ParameterDecorations !289 {
+  %3 = bitcast %"class.sycl::_V1::ext::oneapi::bfloat16"* %1 to %structtype*
+  %4 = getelementptr inbounds %structtype, %structtype* %3, i64 0, i32 0
+  %5 = load i16, i16* %4, align 2
+  %6 = call spir_func i64 @_Z33__spirv_BuiltInGlobalInvocationIdi(i32 0) #2
+  %7 = icmp ult i64 %6, 2147483648
+  call void @llvm.assume(i1 %7)
+  %8 = getelementptr inbounds i16, i16 addrspace(1)* %0, i64 %6
+  store i16 %5, i16 addrspace(1)* %8, align 2
+  ret void
+}
+
+; Function Attrs: nounwind readnone willreturn
+declare spir_func i64 @_Z33__spirv_BuiltInGlobalInvocationIdi(i32) #2
+
+; Function Attrs: nounwind readnone willreturn
+declare spir_func i64 @_Z25__spirv_BuiltInGlobalSizei(i32) #2
+
+attributes #0 = { nounwind }
+attributes #1 = { inaccessiblememonly nocallback nofree nosync nounwind willreturn }
+attributes #2 = { nounwind readnone willreturn }
+
+!spirv.MemoryModel = !{!0}
+!opencl.enable.FP_CONTRACT = !{}
+!spirv.Source = !{!1}
+!opencl.spir.version = !{!2}
+!opencl.ocl.version = !{!3}
+!opencl.used.extensions = !{!4}
+!opencl.used.optional.core.features = !{!4}
+!spirv.Generator = !{!5}
+!opencl.compiler.options = !{!6}
+!igc.spirv.extensions = !{!7}
+!igc.functions = !{}
+!IGCMetadata = !{!8}
+
+!0 = !{i32 2, i32 2}
+!1 = !{i32 4, i32 100000}
+!2 = !{i32 1, i32 2}
+!3 = !{i32 1, i32 0}
+!4 = !{}
+!5 = !{i16 6, i16 14}
+!6 = !{!"-gline-tables-only", !"-cl-intel-256-GRF-per-thread", !"-dumpvisa", !"-dumpschedule"}
+!7 = !{!"SPV_INTEL_memory_access_aliasing", !"SPV_KHR_expect_assume"}
+!8 = !{!"ModuleMD", !9, !10, !112, !113, !144, !161, !181, !191, !193, !194, !210, !211, !212, !213, !217, !218, !225, !226, !227, !228, !229, !230, !231, !232, !233, !234, !235, !237, !241, !242, !243, !244, !245, !246, !247, !248, !249, !250, !251, !252, !253, !254, !255, !256, !257, !258, !260, !262, !265, !266, !267, !269, !270, !271, !276, !277, !278, !279}
+!9 = !{!"isPrecise", i1 false}
+!10 = !{!"compOpt", !11, !12, !13, !14, !15, !16, !17, !18, !19, !20, !21, !22, !23, !24, !25, !26, !27, !28, !29, !30, !31, !32, !33, !34, !35, !36, !37, !38, !39, !40, !41, !42, !43, !44, !45, !46, !47, !48, !49, !50, !51, !52, !53, !54, !55, !56, !57, !58, !59, !60, !61, !62, !63, !64, !65, !66, !67, !68, !69, !70, !71, !72, !73, !74, !75, !76, !77, !78, !79, !80, !81, !82, !83, !84, !85, !86, !87, !88, !89, !90, !91, !92, !93, !94, !95, !96, !97, !98, !99, !100, !101, !102, !103, !104, !105, !106, !107, !108, !109, !110, !111}
+!11 = !{!"DenormsAreZero", i1 false}
+!12 = !{!"BFTFDenormsAreZero", i1 false}
+!13 = !{!"CorrectlyRoundedDivSqrt", i1 false}
+!14 = !{!"OptDisable", i1 false}
+!15 = !{!"MadEnable", i1 false}
+!16 = !{!"NoSignedZeros", i1 false}
+!17 = !{!"NoNaNs", i1 false}
+!18 = !{!"FloatDenormMode16", !"FLOAT_DENORM_RETAIN"}
+!19 = !{!"FloatDenormMode32", !"FLOAT_DENORM_RETAIN"}
+!20 = !{!"FloatDenormMode64", !"FLOAT_DENORM_RETAIN"}
+!21 = !{!"FloatDenormModeBFTF", !"FLOAT_DENORM_RETAIN"}
+!22 = !{!"FloatRoundingMode", i32 0}
+!23 = !{!"FloatCvtIntRoundingMode", i32 3}
+!24 = !{!"LoadCacheDefault", i32 -1}
+!25 = !{!"StoreCacheDefault", i32 -1}
+!26 = !{!"VISAPreSchedRPThreshold", i32 0}
+!27 = !{!"VISAPreSchedCtrl", i32 0}
+!28 = !{!"SetLoopUnrollThreshold", i32 0}
+!29 = !{!"UnsafeMathOptimizations", i1 false}
+!30 = !{!"disableCustomUnsafeOpts", i1 false}
+!31 = !{!"disableReducePow", i1 false}
+!32 = !{!"disableSqrtOpt", i1 false}
+!33 = !{!"FiniteMathOnly", i1 false}
+!34 = !{!"FastRelaxedMath", i1 false}
+!35 = !{!"DashGSpecified", i1 false}
+!36 = !{!"FastCompilation", i1 false}
+!37 = !{!"UseScratchSpacePrivateMemory", i1 true}
+!38 = !{!"RelaxedBuiltins", i1 false}
+!39 = !{!"SubgroupIndependentForwardProgressRequired", i1 true}
+!40 = !{!"GreaterThan2GBBufferRequired", i1 true}
+!41 = !{!"GreaterThan4GBBufferRequired", i1 true}
+!42 = !{!"DisableA64WA", i1 false}
+!43 = !{!"ForceEnableA64WA", i1 false}
+!44 = !{!"PushConstantsEnable", i1 true}
+!45 = !{!"HasPositivePointerOffset", i1 false}
+!46 = !{!"HasBufferOffsetArg", i1 false}
+!47 = !{!"BufferOffsetArgOptional", i1 true}
+!48 = !{!"replaceGlobalOffsetsByZero", i1 false}
+!49 = !{!"forcePixelShaderSIMDMode", i32 0}
+!50 = !{!"forceTotalGRFNum", i32 0}
+!51 = !{!"pixelShaderDoNotAbortOnSpill", i1 false}
+!52 = !{!"UniformWGS", i1 false}
+!53 = !{!"disableVertexComponentPacking", i1 false}
+!54 = !{!"disablePartialVertexComponentPacking", i1 false}
+!55 = !{!"PreferBindlessImages", i1 false}
+!56 = !{!"UseBindlessMode", i1 false}
+!57 = !{!"UseLegacyBindlessMode", i1 true}
+!58 = !{!"disableMathRefactoring", i1 false}
+!59 = !{!"atomicBranch", i1 false}
+!60 = !{!"spillCompression", i1 false}
+!61 = !{!"DisableEarlyOut", i1 false}
+!62 = !{!"ForceInt32DivRemEmu", i1 false}
+!63 = !{!"ForceInt32DivRemEmuSP", i1 false}
+!64 = !{!"DisableFastestSingleCSSIMD", i1 false}
+!65 = !{!"DisableFastestLinearScan", i1 false}
+!66 = !{!"UseStatelessforPrivateMemory", i1 false}
+!67 = !{!"EnableTakeGlobalAddress", i1 false}
+!68 = !{!"IsLibraryCompilation", i1 false}
+!69 = !{!"LibraryCompileSIMDSize", i32 0}
+!70 = !{!"FastVISACompile", i1 false}
+!71 = !{!"MatchSinCosPi", i1 false}
+!72 = !{!"ExcludeIRFromZEBinary", i1 false}
+!73 = !{!"EmitZeBinVISASections", i1 false}
+!74 = !{!"FP64GenEmulationEnabled", i1 false}
+!75 = !{!"FP64GenConvEmulationEnabled", i1 false}
+!76 = !{!"allowDisableRematforCS", i1 false}
+!77 = !{!"DisableIncSpillCostAllAddrTaken", i1 false}
+!78 = !{!"DisableCPSOmaskWA", i1 false}
+!79 = !{!"DisableFastestGopt", i1 false}
+!80 = !{!"WaForceHalfPromotionComputeShader", i1 false}
+!81 = !{!"WaForceHalfPromotionPixelVertexShader", i1 false}
+!82 = !{!"DisableConstantCoalescing", i1 false}
+!83 = !{!"EnableUndefAlphaOutputAsRed", i1 true}
+!84 = !{!"WaEnableALTModeVisaWA", i1 false}
+!85 = !{!"EnableLdStCombineforLoad", i1 false}
+!86 = !{!"EnableLdStCombinewithDummyLoad", i1 false}
+!87 = !{!"ForceUniformBuffer", i1 false}
+!88 = !{!"ForceUniformSurfaceSampler", i1 false}
+!89 = !{!"EnableIndependentSharedMemoryFenceFunctionality", i1 false}
+!90 = !{!"NewSpillCostFunction", i1 false}
+!91 = !{!"EnableVRT", i1 false}
+!92 = !{!"ForceLargeGRFNum4RQ", i1 false}
+!93 = !{!"DisableEUFusion", i1 false}
+!94 = !{!"DisableFDivToFMulInvOpt", i1 false}
+!95 = !{!"initializePhiSampleSourceWA", i1 false}
+!96 = !{!"WaDisableSubspanUseNoMaskForCB", i1 false}
+!97 = !{!"DisableLoosenSimd32Occu", i1 false}
+!98 = !{!"FastestS1Options", i32 0}
+!99 = !{!"DisableFastestForWaveIntrinsicsCS", i1 false}
+!100 = !{!"ForceLinearWalkOnLinearUAV", i1 false}
+!101 = !{!"DisableLscSamplerRouting", i1 false}
+!102 = !{!"UseBarrierControlFlowOptimization", i1 false}
+!103 = !{!"EnableDynamicRQManagement", i1 false}
+!104 = !{!"WaDisablePayloadCoalescing", i1 false}
+!105 = !{!"Quad8InputThreshold", i32 0}
+!106 = !{!"UseResourceLoopUnrollNested", i1 false}
+!107 = !{!"DisableLoopUnroll", i1 false}
+!108 = !{!"ForcePushConstantMode", i32 0}
+!109 = !{!"UseInstructionHoistingOptimization", i1 false}
+!110 = !{!"DisableResourceLoopDestLifeTimeStart", i1 false}
+!111 = !{!"UseLinearScanRA", i1 false}
+!112 = !{!"FuncMD"}
+!113 = !{!"pushInfo", !114, !115, !116, !120, !121, !122, !123, !124, !125, !126, !127, !140, !141, !142, !143}
+!114 = !{!"pushableAddresses"}
+!115 = !{!"bindlessPushInfo"}
+!116 = !{!"dynamicBufferInfo", !117, !118, !119}
+!117 = !{!"firstIndex", i32 0}
+!118 = !{!"numOffsets", i32 0}
+!119 = !{!"forceDisabled", i1 false}
+!120 = !{!"MaxNumberOfPushedBuffers", i32 0}
+!121 = !{!"inlineConstantBufferSlot", i32 -1}
+!122 = !{!"inlineConstantBufferOffset", i32 -1}
+!123 = !{!"inlineConstantBufferGRFOffset", i32 -1}
+!124 = !{!"constants"}
+!125 = !{!"inputs"}
+!126 = !{!"constantReg"}
+!127 = !{!"simplePushInfoArr", !128, !137, !138, !139}
+!128 = !{!"simplePushInfoArrVec[0]", !129, !130, !131, !132, !133, !134, !135, !136}
+!129 = !{!"cbIdx", i32 0}
+!130 = !{!"pushableAddressGrfOffset", i32 -1}
+!131 = !{!"pushableOffsetGrfOffset", i32 -1}
+!132 = !{!"offset", i32 0}
+!133 = !{!"size", i32 0}
+!134 = !{!"isStateless", i1 false}
+!135 = !{!"isBindless", i1 false}
+!136 = !{!"simplePushLoads"}
+!137 = !{!"simplePushInfoArrVec[1]", !129, !130, !131, !132, !133, !134, !135, !136}
+!138 = !{!"simplePushInfoArrVec[2]", !129, !130, !131, !132, !133, !134, !135, !136}
+!139 = !{!"simplePushInfoArrVec[3]", !129, !130, !131, !132, !133, !134, !135, !136}
+!140 = !{!"simplePushBufferUsed", i32 0}
+!141 = !{!"pushAnalysisWIInfos"}
+!142 = !{!"inlineRTGlobalPtrOffset", i32 0}
+!143 = !{!"rtSyncSurfPtrOffset", i32 0}
+!144 = !{!"psInfo", !145, !146, !147, !148, !149, !150, !151, !152, !153, !154, !155, !156, !157, !158, !159, !160}
+!145 = !{!"BlendStateDisabledMask", i8 0}
+!146 = !{!"SkipSrc0Alpha", i1 false}
+!147 = !{!"DualSourceBlendingDisabled", i1 false}
+!148 = !{!"ForceEnableSimd32", i1 false}
+!149 = !{!"DisableSimd32WithDiscard", i1 false}
+!150 = !{!"outputDepth", i1 false}
+!151 = !{!"outputStencil", i1 false}
+!152 = !{!"outputMask", i1 false}
+!153 = !{!"blendToFillEnabled", i1 false}
+!154 = !{!"forceEarlyZ", i1 false}
+!155 = !{!"hasVersionedLoop", i1 false}
+!156 = !{!"forceSingleSourceRTWAfterDualSourceRTW", i1 false}
+!157 = !{!"NumSamples", i8 0}
+!158 = !{!"blendOptimizationMode"}
+!159 = !{!"colorOutputMask"}
+!160 = !{!"WaDisableVRS", i1 false}
+!161 = !{!"csInfo", !162, !163, !164, !165, !50, !26, !27, !28, !166, !167, !168, !169, !170, !171, !172, !173, !174, !175, !176, !60, !177, !178, !179, !180}
+!162 = !{!"maxWorkGroupSize", i32 0}
+!163 = !{!"waveSize", i32 0}
+!164 = !{!"ComputeShaderSecondCompile"}
+!165 = !{!"forcedSIMDSize", i8 0}
+!166 = !{!"forceSpillCompression", i1 false}
+!167 = !{!"allowLowerSimd", i1 false}
+!168 = !{!"disableSimd32Slicing", i1 false}
+!169 = !{!"disableSplitOnSpill", i1 false}
+!170 = !{!"enableNewSpillCostFunction", i1 false}
+!171 = !{!"forceVISAPreSched", i1 false}
+!172 = !{!"disableLocalIdOrderOptimizations", i1 false}
+!173 = !{!"disableDispatchAlongY", i1 false}
+!174 = !{!"neededThreadIdLayout", i1* null}
+!175 = !{!"forceTileYWalk", i1 false}
+!176 = !{!"atomicBranch", i32 0}
+!177 = !{!"disableEarlyOut", i1 false}
+!178 = !{!"walkOrderEnabled", i1 false}
+!179 = !{!"walkOrderOverride", i32 0}
+!180 = !{!"ResForHfPacking"}
+!181 = !{!"msInfo", !182, !183, !184, !185, !186, !187, !188, !189, !190}
+!182 = !{!"PrimitiveTopology", i32 3}
+!183 = !{!"MaxNumOfPrimitives", i32 0}
+!184 = !{!"MaxNumOfVertices", i32 0}
+!185 = !{!"MaxNumOfPerPrimitiveOutputs", i32 0}
+!186 = !{!"MaxNumOfPerVertexOutputs", i32 0}
+!187 = !{!"WorkGroupSize", i32 0}
+!188 = !{!"WorkGroupMemorySizeInBytes", i32 0}
+!189 = !{!"IndexFormat", i32 6}
+!190 = !{!"SubgroupSize", i32 0}
+!191 = !{!"taskInfo", !192, !187, !188, !190}
+!192 = !{!"MaxNumOfOutputs", i32 0}
+!193 = !{!"NBarrierCnt", i32 0}
+!194 = !{!"rtInfo", !195, !196, !197, !198, !199, !200, !201, !202, !203, !204, !205, !206, !207, !208, !209}
+!195 = !{!"RayQueryAllocSizeInBytes", i32 0}
+!196 = !{!"NumContinuations", i32 0}
+!197 = !{!"RTAsyncStackAddrspace", i32 -1}
+!198 = !{!"RTAsyncStackSurfaceStateOffset", i1* null}
+!199 = !{!"SWHotZoneAddrspace", i32 -1}
+!200 = !{!"SWHotZoneSurfaceStateOffset", i1* null}
+!201 = !{!"SWStackAddrspace", i32 -1}
+!202 = !{!"SWStackSurfaceStateOffset", i1* null}
+!203 = !{!"RTSyncStackAddrspace", i32 -1}
+!204 = !{!"RTSyncStackSurfaceStateOffset", i1* null}
+!205 = !{!"doSyncDispatchRays", i1 false}
+!206 = !{!"MemStyle", !"Xe"}
+!207 = !{!"GlobalDataStyle", !"Xe"}
+!208 = !{!"uberTileDimensions", i1* null}
+!209 = !{!"numSyncRTStacks", i32 0}
+!210 = !{!"CurUniqueIndirectIdx", i32 0}
+!211 = !{!"inlineDynTextures"}
+!212 = !{!"inlineResInfoData"}
+!213 = !{!"immConstant", !214, !215, !216}
+!214 = !{!"data"}
+!215 = !{!"sizes"}
+!216 = !{!"zeroIdxs"}
+!217 = !{!"stringConstants"}
+!218 = !{!"inlineBuffers", !219, !223, !224}
+!219 = !{!"inlineBuffersVec[0]", !220, !221, !222}
+!220 = !{!"alignment", i32 0}
+!221 = !{!"allocSize", i64 0}
+!222 = !{!"Buffer"}
+!223 = !{!"inlineBuffersVec[1]", !220, !221, !222}
+!224 = !{!"inlineBuffersVec[2]", !220, !221, !222}
+!225 = !{!"GlobalPointerProgramBinaryInfos"}
+!226 = !{!"ConstantPointerProgramBinaryInfos"}
+!227 = !{!"GlobalBufferAddressRelocInfo"}
+!228 = !{!"ConstantBufferAddressRelocInfo"}
+!229 = !{!"forceLscCacheList"}
+!230 = !{!"SrvMap"}
+!231 = !{!"RasterizerOrderedByteAddressBuffer"}
+!232 = !{!"RasterizerOrderedViews"}
+!233 = !{!"MinNOSPushConstantSize", i32 0}
+!234 = !{!"inlineProgramScopeOffsets"}
+!235 = !{!"shaderData", !236}
+!236 = !{!"numReplicas", i32 0}
+!237 = !{!"URBInfo", !238, !239, !240}
+!238 = !{!"has64BVertexHeaderInput", i1 false}
+!239 = !{!"has64BVertexHeaderOutput", i1 false}
+!240 = !{!"hasVertexHeader", i1 true}
+!241 = !{!"UseBindlessImage", i1 false}
+!242 = !{!"UseBindlessImageWithSamplerTracking", i1 false}
+!243 = !{!"enableRangeReduce", i1 false}
+!244 = !{!"allowMatchMadOptimizationforVS", i1 false}
+!245 = !{!"disableMatchMadOptimizationForCS", i1 false}
+!246 = !{!"disableMemOptforNegativeOffsetLoads", i1 false}
+!247 = !{!"enableThreeWayLoadSpiltOpt", i1 false}
+!248 = !{!"statefulResourcesNotAliased", i1 false}
+!249 = !{!"disableMixMode", i1 false}
+!250 = !{!"genericAccessesResolved", i1 false}
+!251 = !{!"disableSeparateSpillPvtScratchSpace", i1 false}
+!252 = !{!"enableSeparateSpillPvtScratchSpace", i1 false}
+!253 = !{!"disableSeparateScratchWA", i1 false}
+!254 = !{!"enableRemoveUnusedTGMFence", i1 false}
+!255 = !{!"privateMemoryPerWI", i32 0}
+!256 = !{!"PrivateMemoryPerFG"}
+!257 = !{!"m_OptsToDisable"}
+!258 = !{!"capabilities", !259}
+!259 = !{!"globalVariableDecorationsINTEL", i1 false}
+!260 = !{!"extensions", !261}
+!261 = !{!"spvINTELBindlessImages", i1 false}
+!262 = !{!"m_ShaderResourceViewMcsMask", !263, !264}
+!263 = !{!"m_ShaderResourceViewMcsMaskVec[0]", i64 0}
+!264 = !{!"m_ShaderResourceViewMcsMaskVec[1]", i64 0}
+!265 = !{!"computedDepthMode", i32 0}
+!266 = !{!"isHDCFastClearShader", i1 false}
+!267 = !{!"argRegisterReservations", !268}
+!268 = !{!"argRegisterReservationsVec[0]", i32 0}
+!269 = !{!"SIMD16_SpillThreshold", i8 0}
+!270 = !{!"SIMD32_SpillThreshold", i8 0}
+!271 = !{!"m_CacheControlOption", !272, !273, !274, !275}
+!272 = !{!"LscLoadCacheControlOverride", i8 0}
+!273 = !{!"LscStoreCacheControlOverride", i8 0}
+!274 = !{!"TgmLoadCacheControlOverride", i8 0}
+!275 = !{!"TgmStoreCacheControlOverride", i8 0}
+!276 = !{!"ModuleUsesBindless", i1 false}
+!277 = !{!"predicationMap"}
+!278 = !{!"lifeTimeStartMap"}
+!279 = !{!"HitGroups"}
+!280 = !{i32 0, i32 0}
+!281 = !{!"none", !"none"}
+!282 = !{!"class.sycl::_V1::range", !"class.__generated_"}
+!283 = !{!"", !""}
+!284 = !{!285, !285}
+!285 = !{!286, !287}
+!286 = !{i32 38, i32 2}
+!287 = !{i32 44, i32 8}
+!288 = !{!"short*", !"class.sycl::_V1::ext::oneapi::bfloat16"}
+!289 = !{!4, !290}
+!290 = !{!286, !291}
+!291 = !{i32 44, i32 2}

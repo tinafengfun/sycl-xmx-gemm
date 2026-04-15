@@ -1,0 +1,578 @@
+; ------------------------------------------------
+; OCL_asmea89a4472ab535eb_push_analysis.ll
+; ------------------------------------------------
+target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v24:32:32-v32:32:32-v48:64:64-v64:64:64-v96:128:128-v128:128:128-v192:256:256-v256:256:256-v512:512:512-v1024:1024:1024-n8:16:32"
+target triple = "spir64-unknown-unknown"
+
+%"class.sycl::_V1::range" = type { %"class.sycl::_V1::detail::array" }
+%"class.sycl::_V1::detail::array" = type { [1 x i64] }
+%class.__generated_ = type <{ i8 addrspace(1)*, %"class.sycl::_V1::ext::oneapi::bfloat16", [6 x i8] }>
+%"class.sycl::_V1::ext::oneapi::bfloat16" = type { i16 }
+
+; Function Attrs: convergent nounwind null_pointer_is_valid
+define spir_kernel void @_ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE(%"class.sycl::_V1::range"* byval(%"class.sycl::_V1::range") align 8 %0, %class.__generated_* byval(%class.__generated_) align 8 %1, <8 x i32> %r0, <3 x i32> %globalOffset, <3 x i32> %globalSize, <3 x i32> %enqueuedLocalSize, i16 %localIdX, i16 %localIdY, i16 %localIdZ, i8* %privateBase, i64 %const_reg_qword, i64 %const_reg_qword1, i16 %const_reg_word, i8 %const_reg_byte, i8 %const_reg_byte2, i8 %const_reg_byte3, i8 %const_reg_byte4, i8 %const_reg_byte5, i8 %const_reg_byte6) #0 {
+  %3 = bitcast i64 %const_reg_qword to <2 x i32>
+  %4 = extractelement <2 x i32> %3, i32 0
+  %5 = extractelement <2 x i32> %3, i32 1
+  %6 = extractelement <3 x i32> %globalSize, i32 0
+  %7 = extractelement <3 x i32> %globalOffset, i32 0
+  %8 = extractelement <3 x i32> %enqueuedLocalSize, i32 0
+  %9 = extractelement <8 x i32> %r0, i32 1
+  %10 = call { i32, i32 } @llvm.genx.GenISA.mul.pair(i32 %8, i32 0, i32 %9, i32 0)
+  %11 = extractvalue { i32, i32 } %10, 0
+  %12 = extractvalue { i32, i32 } %10, 1
+  %13 = insertelement <2 x i32> undef, i32 %11, i32 0
+  %14 = insertelement <2 x i32> %13, i32 %12, i32 1
+  %15 = bitcast <2 x i32> %14 to i64
+  %16 = zext i16 %localIdX to i64
+  %17 = add nuw i64 %15, %16
+  %18 = zext i32 %7 to i64
+  %19 = add nuw i64 %17, %18
+  %20 = bitcast i64 %19 to <2 x i32>
+  %21 = extractelement <2 x i32> %20, i32 0
+  %22 = extractelement <2 x i32> %20, i32 1
+  %23 = zext i32 %6 to i64
+  %24 = icmp ult i32 %21, %4
+  %25 = icmp eq i32 %22, %5
+  %26 = and i1 %25, %24
+  %27 = icmp ult i32 %22, %5
+  %28 = or i1 %26, %27
+  br i1 %28, label %.lr.ph.preheader, label %.._crit_edge_crit_edge
+
+.._crit_edge_crit_edge:                           ; preds = %2
+  br label %._crit_edge
+
+.lr.ph.preheader:                                 ; preds = %2
+  br label %.lr.ph
+
+.lr.ph:                                           ; preds = %.lr.ph..lr.ph_crit_edge, %.lr.ph.preheader
+  %29 = phi i64 [ %47, %.lr.ph..lr.ph_crit_edge ], [ %19, %.lr.ph.preheader ]
+  %30 = shl i64 %29, 1
+  %31 = add i64 %30, %const_reg_qword1
+  %32 = inttoptr i64 %31 to i16 addrspace(4)*
+  %33 = addrspacecast i16 addrspace(4)* %32 to i16 addrspace(1)*
+  store i16 %const_reg_word, i16 addrspace(1)* %33, align 2
+  %34 = add nuw nsw i64 %29, %23
+  %35 = bitcast i64 %34 to <2 x i32>
+  %36 = extractelement <2 x i32> %35, i32 0
+  %37 = extractelement <2 x i32> %35, i32 1
+  %38 = icmp ult i32 %36, %4
+  %39 = icmp eq i32 %37, %5
+  %40 = and i1 %39, %38
+  %41 = icmp ult i32 %37, %5
+  %42 = or i1 %40, %41
+  %43 = select i1 %42, i32 %36, i32 %21
+  %44 = select i1 %42, i32 %37, i32 %22
+  %45 = insertelement <2 x i32> undef, i32 %43, i32 0
+  %46 = insertelement <2 x i32> %45, i32 %44, i32 1
+  %47 = bitcast <2 x i32> %46 to i64
+  br i1 %42, label %.lr.ph..lr.ph_crit_edge, label %._crit_edge.loopexit
+
+.lr.ph..lr.ph_crit_edge:                          ; preds = %.lr.ph
+  br label %.lr.ph
+
+._crit_edge.loopexit:                             ; preds = %.lr.ph
+  br label %._crit_edge
+
+._crit_edge:                                      ; preds = %.._crit_edge_crit_edge, %._crit_edge.loopexit
+  ret void
+}
+
+; Function Attrs: inaccessiblememonly nocallback nofree nosync nounwind willreturn
+declare void @llvm.assume(i1 noundef) #1
+
+; Function Attrs: convergent nounwind null_pointer_is_valid
+define spir_kernel void @_ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_(i16 addrspace(1)* align 2 %0, %"class.sycl::_V1::ext::oneapi::bfloat16"* byval(%"class.sycl::_V1::ext::oneapi::bfloat16") align 2 %1, <8 x i32> %r0, <3 x i32> %globalOffset, <3 x i32> %enqueuedLocalSize, i16 %localIdX, i16 %localIdY, i16 %localIdZ, i8* %privateBase, i16 %const_reg_word, i32 %bufferOffset, i32 %bindlessOffset) #0 {
+  %3 = extractelement <3 x i32> %globalOffset, i32 0
+  %4 = extractelement <3 x i32> %enqueuedLocalSize, i32 0
+  %5 = extractelement <8 x i32> %r0, i32 1
+  %6 = call { i32, i32 } @llvm.genx.GenISA.mul.pair(i32 %4, i32 0, i32 %5, i32 0)
+  %7 = extractvalue { i32, i32 } %6, 0
+  %8 = extractvalue { i32, i32 } %6, 1
+  %9 = insertelement <2 x i32> undef, i32 %7, i32 0
+  %10 = insertelement <2 x i32> %9, i32 %8, i32 1
+  %11 = bitcast <2 x i32> %10 to i64
+  %12 = zext i16 %localIdX to i64
+  %13 = add nuw i64 %11, %12
+  %14 = zext i32 %3 to i64
+  %15 = add nuw i64 %13, %14
+  %16 = ptrtoint i16 addrspace(1)* %0 to i64
+  %17 = shl i64 %15, 1
+  %18 = add i64 %17, %16
+  %19 = inttoptr i64 %18 to i16 addrspace(1)*
+  store i16 %const_reg_word, i16 addrspace(1)* %19, align 2
+  ret void
+}
+
+; Function Attrs: convergent mustprogress nofree nounwind readnone willreturn
+declare spir_func i32 @__builtin_IB_get_group_id(i32 noundef) local_unnamed_addr #2
+
+; Function Attrs: convergent mustprogress nofree nounwind readnone willreturn
+declare spir_func i32 @__builtin_IB_get_enqueued_local_size(i32 noundef) local_unnamed_addr #2
+
+; Function Attrs: convergent mustprogress nofree nounwind readnone willreturn
+declare spir_func i32 @__builtin_IB_get_local_id_x() local_unnamed_addr #2
+
+; Function Attrs: convergent mustprogress nofree nounwind readnone willreturn
+declare spir_func i32 @__builtin_IB_get_global_offset(i32 noundef) local_unnamed_addr #2
+
+; Function Attrs: convergent mustprogress nofree nounwind readnone willreturn
+declare spir_func i32 @__builtin_IB_get_global_size(i32 noundef) local_unnamed_addr #2
+
+declare i32 @printf(i8 addrspace(2)*, ...)
+
+; Function Desc: 
+; Output: 
+; Arg 0: 
+; Arg 1: 
+; Arg 2: 
+; Arg 3: 
+; Function Attrs: nounwind readnone willreturn
+declare { i32, i32 } @llvm.genx.GenISA.mul.pair(i32, i32, i32, i32) #3
+
+attributes #0 = { convergent nounwind null_pointer_is_valid "less-precise-fpmad"="true" }
+attributes #1 = { inaccessiblememonly nocallback nofree nosync nounwind willreturn }
+attributes #2 = { convergent mustprogress nofree nounwind readnone willreturn "frame-pointer"="none" "no-trapping-math"="true" "stack-protector-buffer-size"="8" }
+attributes #3 = { nounwind readnone willreturn }
+
+!spirv.MemoryModel = !{!0}
+!spirv.Source = !{!1}
+!spirv.Generator = !{!2}
+!igc.functions = !{!3, !34}
+!IGCMetadata = !{!40}
+!opencl.ocl.version = !{!428, !428, !428, !428, !428, !428, !428}
+!opencl.spir.version = !{!428, !428, !428, !428, !428, !428, !428}
+!llvm.ident = !{!429, !429, !429, !429, !429, !429, !429}
+!llvm.module.flags = !{!430}
+
+!0 = !{i32 2, i32 2}
+!1 = !{i32 4, i32 100000}
+!2 = !{i16 6, i16 14}
+!3 = !{void (%"class.sycl::_V1::range"*, %class.__generated_*, <8 x i32>, <3 x i32>, <3 x i32>, <3 x i32>, i16, i16, i16, i8*, i64, i64, i16, i8, i8, i8, i8, i8, i8)* @_ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE, !4}
+!4 = !{!5, !6}
+!5 = !{!"function_type", i32 0}
+!6 = !{!"implicit_arg_desc", !7, !8, !9, !10, !11, !12, !13, !14, !15, !18, !20, !22, !24, !26, !28, !30, !32}
+!7 = !{i32 0}
+!8 = !{i32 2}
+!9 = !{i32 5}
+!10 = !{i32 7}
+!11 = !{i32 8}
+!12 = !{i32 9}
+!13 = !{i32 10}
+!14 = !{i32 13}
+!15 = !{i32 17, !16, !17}
+!16 = !{!"explicit_arg_num", i32 0}
+!17 = !{!"struct_arg_offset", i32 0}
+!18 = !{i32 17, !19, !17}
+!19 = !{!"explicit_arg_num", i32 1}
+!20 = !{i32 19, !19, !21}
+!21 = !{!"struct_arg_offset", i32 8}
+!22 = !{i32 20, !19, !23}
+!23 = !{!"struct_arg_offset", i32 10}
+!24 = !{i32 20, !19, !25}
+!25 = !{!"struct_arg_offset", i32 11}
+!26 = !{i32 20, !19, !27}
+!27 = !{!"struct_arg_offset", i32 12}
+!28 = !{i32 20, !19, !29}
+!29 = !{!"struct_arg_offset", i32 13}
+!30 = !{i32 20, !19, !31}
+!31 = !{!"struct_arg_offset", i32 14}
+!32 = !{i32 20, !19, !33}
+!33 = !{!"struct_arg_offset", i32 15}
+!34 = !{void (i16 addrspace(1)*, %"class.sycl::_V1::ext::oneapi::bfloat16"*, <8 x i32>, <3 x i32>, <3 x i32>, i16, i16, i16, i8*, i16, i32, i32)* @_ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_, !35}
+!35 = !{!5, !36}
+!36 = !{!"implicit_arg_desc", !7, !8, !10, !11, !12, !13, !14, !37, !38, !39}
+!37 = !{i32 19, !19, !17}
+!38 = !{i32 15, !16}
+!39 = !{i32 59, !16}
+!40 = !{!"ModuleMD", !41, !42, !144, !259, !290, !307, !327, !337, !339, !340, !355, !356, !357, !358, !362, !363, !370, !371, !372, !373, !374, !375, !376, !377, !378, !379, !380, !382, !386, !387, !388, !389, !390, !391, !392, !393, !394, !395, !396, !397, !398, !399, !212, !400, !405, !406, !408, !410, !413, !414, !415, !417, !418, !419, !424, !425, !426, !427}
+!41 = !{!"isPrecise", i1 false}
+!42 = !{!"compOpt", !43, !44, !45, !46, !47, !48, !49, !50, !51, !52, !53, !54, !55, !56, !57, !58, !59, !60, !61, !62, !63, !64, !65, !66, !67, !68, !69, !70, !71, !72, !73, !74, !75, !76, !77, !78, !79, !80, !81, !82, !83, !84, !85, !86, !87, !88, !89, !90, !91, !92, !93, !94, !95, !96, !97, !98, !99, !100, !101, !102, !103, !104, !105, !106, !107, !108, !109, !110, !111, !112, !113, !114, !115, !116, !117, !118, !119, !120, !121, !122, !123, !124, !125, !126, !127, !128, !129, !130, !131, !132, !133, !134, !135, !136, !137, !138, !139, !140, !141, !142, !143}
+!43 = !{!"DenormsAreZero", i1 false}
+!44 = !{!"BFTFDenormsAreZero", i1 false}
+!45 = !{!"CorrectlyRoundedDivSqrt", i1 false}
+!46 = !{!"OptDisable", i1 false}
+!47 = !{!"MadEnable", i1 true}
+!48 = !{!"NoSignedZeros", i1 false}
+!49 = !{!"NoNaNs", i1 false}
+!50 = !{!"FloatDenormMode16", !"FLOAT_DENORM_RETAIN"}
+!51 = !{!"FloatDenormMode32", !"FLOAT_DENORM_RETAIN"}
+!52 = !{!"FloatDenormMode64", !"FLOAT_DENORM_RETAIN"}
+!53 = !{!"FloatDenormModeBFTF", !"FLOAT_DENORM_RETAIN"}
+!54 = !{!"FloatRoundingMode", i32 0}
+!55 = !{!"FloatCvtIntRoundingMode", i32 3}
+!56 = !{!"LoadCacheDefault", i32 4}
+!57 = !{!"StoreCacheDefault", i32 2}
+!58 = !{!"VISAPreSchedRPThreshold", i32 0}
+!59 = !{!"VISAPreSchedCtrl", i32 0}
+!60 = !{!"SetLoopUnrollThreshold", i32 0}
+!61 = !{!"UnsafeMathOptimizations", i1 false}
+!62 = !{!"disableCustomUnsafeOpts", i1 false}
+!63 = !{!"disableReducePow", i1 false}
+!64 = !{!"disableSqrtOpt", i1 false}
+!65 = !{!"FiniteMathOnly", i1 false}
+!66 = !{!"FastRelaxedMath", i1 false}
+!67 = !{!"DashGSpecified", i1 false}
+!68 = !{!"FastCompilation", i1 false}
+!69 = !{!"UseScratchSpacePrivateMemory", i1 true}
+!70 = !{!"RelaxedBuiltins", i1 false}
+!71 = !{!"SubgroupIndependentForwardProgressRequired", i1 true}
+!72 = !{!"GreaterThan2GBBufferRequired", i1 true}
+!73 = !{!"GreaterThan4GBBufferRequired", i1 true}
+!74 = !{!"DisableA64WA", i1 false}
+!75 = !{!"ForceEnableA64WA", i1 false}
+!76 = !{!"PushConstantsEnable", i1 true}
+!77 = !{!"HasPositivePointerOffset", i1 false}
+!78 = !{!"HasBufferOffsetArg", i1 true}
+!79 = !{!"BufferOffsetArgOptional", i1 true}
+!80 = !{!"replaceGlobalOffsetsByZero", i1 false}
+!81 = !{!"forcePixelShaderSIMDMode", i32 0}
+!82 = !{!"forceTotalGRFNum", i32 0}
+!83 = !{!"pixelShaderDoNotAbortOnSpill", i1 false}
+!84 = !{!"UniformWGS", i1 false}
+!85 = !{!"disableVertexComponentPacking", i1 false}
+!86 = !{!"disablePartialVertexComponentPacking", i1 false}
+!87 = !{!"PreferBindlessImages", i1 true}
+!88 = !{!"UseBindlessMode", i1 true}
+!89 = !{!"UseLegacyBindlessMode", i1 false}
+!90 = !{!"disableMathRefactoring", i1 false}
+!91 = !{!"atomicBranch", i1 false}
+!92 = !{!"spillCompression", i1 false}
+!93 = !{!"DisableEarlyOut", i1 false}
+!94 = !{!"ForceInt32DivRemEmu", i1 false}
+!95 = !{!"ForceInt32DivRemEmuSP", i1 false}
+!96 = !{!"DisableFastestSingleCSSIMD", i1 false}
+!97 = !{!"DisableFastestLinearScan", i1 false}
+!98 = !{!"UseStatelessforPrivateMemory", i1 false}
+!99 = !{!"EnableTakeGlobalAddress", i1 false}
+!100 = !{!"IsLibraryCompilation", i1 false}
+!101 = !{!"LibraryCompileSIMDSize", i32 0}
+!102 = !{!"FastVISACompile", i1 false}
+!103 = !{!"MatchSinCosPi", i1 false}
+!104 = !{!"ExcludeIRFromZEBinary", i1 false}
+!105 = !{!"EmitZeBinVISASections", i1 false}
+!106 = !{!"FP64GenEmulationEnabled", i1 false}
+!107 = !{!"FP64GenConvEmulationEnabled", i1 false}
+!108 = !{!"allowDisableRematforCS", i1 false}
+!109 = !{!"DisableIncSpillCostAllAddrTaken", i1 false}
+!110 = !{!"DisableCPSOmaskWA", i1 false}
+!111 = !{!"DisableFastestGopt", i1 false}
+!112 = !{!"WaForceHalfPromotionComputeShader", i1 false}
+!113 = !{!"WaForceHalfPromotionPixelVertexShader", i1 false}
+!114 = !{!"DisableConstantCoalescing", i1 false}
+!115 = !{!"EnableUndefAlphaOutputAsRed", i1 true}
+!116 = !{!"WaEnableALTModeVisaWA", i1 false}
+!117 = !{!"EnableLdStCombineforLoad", i1 false}
+!118 = !{!"EnableLdStCombinewithDummyLoad", i1 false}
+!119 = !{!"ForceUniformBuffer", i1 false}
+!120 = !{!"ForceUniformSurfaceSampler", i1 false}
+!121 = !{!"EnableIndependentSharedMemoryFenceFunctionality", i1 false}
+!122 = !{!"NewSpillCostFunction", i1 false}
+!123 = !{!"EnableVRT", i1 false}
+!124 = !{!"ForceLargeGRFNum4RQ", i1 false}
+!125 = !{!"DisableEUFusion", i1 false}
+!126 = !{!"DisableFDivToFMulInvOpt", i1 false}
+!127 = !{!"initializePhiSampleSourceWA", i1 false}
+!128 = !{!"WaDisableSubspanUseNoMaskForCB", i1 false}
+!129 = !{!"DisableLoosenSimd32Occu", i1 false}
+!130 = !{!"FastestS1Options", i32 0}
+!131 = !{!"DisableFastestForWaveIntrinsicsCS", i1 false}
+!132 = !{!"ForceLinearWalkOnLinearUAV", i1 false}
+!133 = !{!"DisableLscSamplerRouting", i1 false}
+!134 = !{!"UseBarrierControlFlowOptimization", i1 false}
+!135 = !{!"EnableDynamicRQManagement", i1 false}
+!136 = !{!"WaDisablePayloadCoalescing", i1 false}
+!137 = !{!"Quad8InputThreshold", i32 0}
+!138 = !{!"UseResourceLoopUnrollNested", i1 false}
+!139 = !{!"DisableLoopUnroll", i1 false}
+!140 = !{!"ForcePushConstantMode", i32 0}
+!141 = !{!"UseInstructionHoistingOptimization", i1 false}
+!142 = !{!"DisableResourceLoopDestLifeTimeStart", i1 false}
+!143 = !{!"UseLinearScanRA", i1 false}
+!144 = !{!"FuncMD", !145, !146, !246, !247}
+!145 = !{!"FuncMDMap[0]", void (%"class.sycl::_V1::range"*, %class.__generated_*, <8 x i32>, <3 x i32>, <3 x i32>, <3 x i32>, i16, i16, i16, i8*, i64, i64, i16, i8, i8, i8, i8, i8, i8)* @_ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE}
+!146 = !{!"FuncMDValue[0]", !147, !148, !152, !153, !154, !176, !204, !205, !206, !207, !208, !209, !210, !211, !212, !213, !214, !215, !216, !217, !218, !219, !220, !221, !222, !225, !228, !231, !234, !237, !240, !242}
+!147 = !{!"localOffsets"}
+!148 = !{!"workGroupWalkOrder", !149, !150, !151}
+!149 = !{!"dim0", i32 0}
+!150 = !{!"dim1", i32 1}
+!151 = !{!"dim2", i32 2}
+!152 = !{!"funcArgs"}
+!153 = !{!"functionType", !"KernelFunction"}
+!154 = !{!"rtInfo", !155, !156, !157, !158, !159, !160, !161, !162, !163, !164, !165, !166, !167, !168, !169, !170, !172, !173, !174, !175}
+!155 = !{!"callableShaderType", !"NumberOfCallableShaderTypes"}
+!156 = !{!"isContinuation", i1 false}
+!157 = !{!"hasTraceRayPayload", i1 false}
+!158 = !{!"hasHitAttributes", i1 false}
+!159 = !{!"hasCallableData", i1 false}
+!160 = !{!"ShaderStackSize", i32 0}
+!161 = !{!"ShaderHash", i64 0}
+!162 = !{!"ShaderName", !""}
+!163 = !{!"ParentName", !""}
+!164 = !{!"SlotNum", i1* null}
+!165 = !{!"NOSSize", i32 0}
+!166 = !{!"globalRootSignatureSize", i32 0}
+!167 = !{!"Entries"}
+!168 = !{!"SpillUnions"}
+!169 = !{!"CustomHitAttrSizeInBytes", i32 0}
+!170 = !{!"Types", !171}
+!171 = !{!"FullFrameTys"}
+!172 = !{!"Aliases"}
+!173 = !{!"numSyncRTStacks", i32 0}
+!174 = !{!"NumCoherenceHintBits", i32 0}
+!175 = !{!"OriginatingShaderName", !""}
+!176 = !{!"resAllocMD", !177, !178, !179, !180, !203}
+!177 = !{!"uavsNumType", i32 0}
+!178 = !{!"srvsNumType", i32 0}
+!179 = !{!"samplersNumType", i32 0}
+!180 = !{!"argAllocMDList", !181, !185, !186, !187, !188, !189, !190, !191, !192, !193, !194, !195, !196, !197, !198, !199, !200, !201, !202}
+!181 = !{!"argAllocMDListVec[0]", !182, !183, !184}
+!182 = !{!"type", i32 0}
+!183 = !{!"extensionType", i32 -1}
+!184 = !{!"indexType", i32 -1}
+!185 = !{!"argAllocMDListVec[1]", !182, !183, !184}
+!186 = !{!"argAllocMDListVec[2]", !182, !183, !184}
+!187 = !{!"argAllocMDListVec[3]", !182, !183, !184}
+!188 = !{!"argAllocMDListVec[4]", !182, !183, !184}
+!189 = !{!"argAllocMDListVec[5]", !182, !183, !184}
+!190 = !{!"argAllocMDListVec[6]", !182, !183, !184}
+!191 = !{!"argAllocMDListVec[7]", !182, !183, !184}
+!192 = !{!"argAllocMDListVec[8]", !182, !183, !184}
+!193 = !{!"argAllocMDListVec[9]", !182, !183, !184}
+!194 = !{!"argAllocMDListVec[10]", !182, !183, !184}
+!195 = !{!"argAllocMDListVec[11]", !182, !183, !184}
+!196 = !{!"argAllocMDListVec[12]", !182, !183, !184}
+!197 = !{!"argAllocMDListVec[13]", !182, !183, !184}
+!198 = !{!"argAllocMDListVec[14]", !182, !183, !184}
+!199 = !{!"argAllocMDListVec[15]", !182, !183, !184}
+!200 = !{!"argAllocMDListVec[16]", !182, !183, !184}
+!201 = !{!"argAllocMDListVec[17]", !182, !183, !184}
+!202 = !{!"argAllocMDListVec[18]", !182, !183, !184}
+!203 = !{!"inlineSamplersMD"}
+!204 = !{!"maxByteOffsets"}
+!205 = !{!"IsInitializer", i1 false}
+!206 = !{!"IsFinalizer", i1 false}
+!207 = !{!"CompiledSubGroupsNumber", i32 0}
+!208 = !{!"hasInlineVmeSamplers", i1 false}
+!209 = !{!"localSize", i32 0}
+!210 = !{!"localIDPresent", i1 false}
+!211 = !{!"groupIDPresent", i1 false}
+!212 = !{!"privateMemoryPerWI", i32 0}
+!213 = !{!"prevFPOffset", i32 0}
+!214 = !{!"globalIDPresent", i1 false}
+!215 = !{!"hasSyncRTCalls", i1 false}
+!216 = !{!"hasPrintfCalls", i1 false}
+!217 = !{!"hasIndirectCalls", i1 false}
+!218 = !{!"hasNonKernelArgLoad", i1 false}
+!219 = !{!"hasNonKernelArgStore", i1 false}
+!220 = !{!"hasNonKernelArgAtomic", i1 false}
+!221 = !{!"UserAnnotations"}
+!222 = !{!"m_OpenCLArgAddressSpaces", !223, !224}
+!223 = !{!"m_OpenCLArgAddressSpacesVec[0]", i32 0}
+!224 = !{!"m_OpenCLArgAddressSpacesVec[1]", i32 0}
+!225 = !{!"m_OpenCLArgAccessQualifiers", !226, !227}
+!226 = !{!"m_OpenCLArgAccessQualifiersVec[0]", !"none"}
+!227 = !{!"m_OpenCLArgAccessQualifiersVec[1]", !"none"}
+!228 = !{!"m_OpenCLArgTypes", !229, !230}
+!229 = !{!"m_OpenCLArgTypesVec[0]", !"class.sycl::_V1::range"}
+!230 = !{!"m_OpenCLArgTypesVec[1]", !"class.__generated_"}
+!231 = !{!"m_OpenCLArgBaseTypes", !232, !233}
+!232 = !{!"m_OpenCLArgBaseTypesVec[0]", !"class.sycl::_V1::range"}
+!233 = !{!"m_OpenCLArgBaseTypesVec[1]", !"class.__generated_"}
+!234 = !{!"m_OpenCLArgTypeQualifiers", !235, !236}
+!235 = !{!"m_OpenCLArgTypeQualifiersVec[0]", !""}
+!236 = !{!"m_OpenCLArgTypeQualifiersVec[1]", !""}
+!237 = !{!"m_OpenCLArgNames", !238, !239}
+!238 = !{!"m_OpenCLArgNamesVec[0]", !""}
+!239 = !{!"m_OpenCLArgNamesVec[1]", !""}
+!240 = !{!"m_OpenCLArgScalarAsPointers", !241}
+!241 = !{!"m_OpenCLArgScalarAsPointersSet[0]", i32 11}
+!242 = !{!"m_OptsToDisablePerFunc", !243, !244, !245}
+!243 = !{!"m_OptsToDisablePerFuncSet[0]", !"IGC-AddressArithmeticSinking"}
+!244 = !{!"m_OptsToDisablePerFuncSet[1]", !"IGC-AllowSimd32Slicing"}
+!245 = !{!"m_OptsToDisablePerFuncSet[2]", !"IGC-SinkLoadOpt"}
+!246 = !{!"FuncMDMap[1]", void (i16 addrspace(1)*, %"class.sycl::_V1::ext::oneapi::bfloat16"*, <8 x i32>, <3 x i32>, <3 x i32>, i16, i16, i16, i8*, i16, i32, i32)* @_ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_}
+!247 = !{!"FuncMDValue[1]", !147, !148, !152, !153, !154, !248, !204, !205, !206, !207, !208, !209, !210, !211, !212, !213, !214, !215, !216, !217, !218, !219, !220, !221, !250, !225, !252, !255, !234, !237, !258, !242}
+!248 = !{!"resAllocMD", !177, !178, !179, !249, !203}
+!249 = !{!"argAllocMDList", !181, !185, !186, !187, !188, !189, !190, !191, !192, !193, !194, !195}
+!250 = !{!"m_OpenCLArgAddressSpaces", !251, !224}
+!251 = !{!"m_OpenCLArgAddressSpacesVec[0]", i32 1}
+!252 = !{!"m_OpenCLArgTypes", !253, !254}
+!253 = !{!"m_OpenCLArgTypesVec[0]", !"short*"}
+!254 = !{!"m_OpenCLArgTypesVec[1]", !"class.sycl::_V1::ext::oneapi::bfloat16"}
+!255 = !{!"m_OpenCLArgBaseTypes", !256, !257}
+!256 = !{!"m_OpenCLArgBaseTypesVec[0]", !"short*"}
+!257 = !{!"m_OpenCLArgBaseTypesVec[1]", !"class.sycl::_V1::ext::oneapi::bfloat16"}
+!258 = !{!"m_OpenCLArgScalarAsPointers"}
+!259 = !{!"pushInfo", !260, !261, !262, !266, !267, !268, !269, !270, !271, !272, !273, !286, !287, !288, !289}
+!260 = !{!"pushableAddresses"}
+!261 = !{!"bindlessPushInfo"}
+!262 = !{!"dynamicBufferInfo", !263, !264, !265}
+!263 = !{!"firstIndex", i32 0}
+!264 = !{!"numOffsets", i32 0}
+!265 = !{!"forceDisabled", i1 false}
+!266 = !{!"MaxNumberOfPushedBuffers", i32 0}
+!267 = !{!"inlineConstantBufferSlot", i32 -1}
+!268 = !{!"inlineConstantBufferOffset", i32 -1}
+!269 = !{!"inlineConstantBufferGRFOffset", i32 -1}
+!270 = !{!"constants"}
+!271 = !{!"inputs"}
+!272 = !{!"constantReg"}
+!273 = !{!"simplePushInfoArr", !274, !283, !284, !285}
+!274 = !{!"simplePushInfoArrVec[0]", !275, !276, !277, !278, !279, !280, !281, !282}
+!275 = !{!"cbIdx", i32 0}
+!276 = !{!"pushableAddressGrfOffset", i32 -1}
+!277 = !{!"pushableOffsetGrfOffset", i32 -1}
+!278 = !{!"offset", i32 0}
+!279 = !{!"size", i32 0}
+!280 = !{!"isStateless", i1 false}
+!281 = !{!"isBindless", i1 false}
+!282 = !{!"simplePushLoads"}
+!283 = !{!"simplePushInfoArrVec[1]", !275, !276, !277, !278, !279, !280, !281, !282}
+!284 = !{!"simplePushInfoArrVec[2]", !275, !276, !277, !278, !279, !280, !281, !282}
+!285 = !{!"simplePushInfoArrVec[3]", !275, !276, !277, !278, !279, !280, !281, !282}
+!286 = !{!"simplePushBufferUsed", i32 0}
+!287 = !{!"pushAnalysisWIInfos"}
+!288 = !{!"inlineRTGlobalPtrOffset", i32 0}
+!289 = !{!"rtSyncSurfPtrOffset", i32 0}
+!290 = !{!"psInfo", !291, !292, !293, !294, !295, !296, !297, !298, !299, !300, !301, !302, !303, !304, !305, !306}
+!291 = !{!"BlendStateDisabledMask", i8 0}
+!292 = !{!"SkipSrc0Alpha", i1 false}
+!293 = !{!"DualSourceBlendingDisabled", i1 false}
+!294 = !{!"ForceEnableSimd32", i1 false}
+!295 = !{!"DisableSimd32WithDiscard", i1 false}
+!296 = !{!"outputDepth", i1 false}
+!297 = !{!"outputStencil", i1 false}
+!298 = !{!"outputMask", i1 false}
+!299 = !{!"blendToFillEnabled", i1 false}
+!300 = !{!"forceEarlyZ", i1 false}
+!301 = !{!"hasVersionedLoop", i1 false}
+!302 = !{!"forceSingleSourceRTWAfterDualSourceRTW", i1 false}
+!303 = !{!"NumSamples", i8 0}
+!304 = !{!"blendOptimizationMode"}
+!305 = !{!"colorOutputMask"}
+!306 = !{!"WaDisableVRS", i1 false}
+!307 = !{!"csInfo", !308, !309, !310, !311, !82, !58, !59, !60, !312, !313, !314, !315, !316, !317, !318, !319, !320, !321, !322, !92, !323, !324, !325, !326}
+!308 = !{!"maxWorkGroupSize", i32 0}
+!309 = !{!"waveSize", i32 0}
+!310 = !{!"ComputeShaderSecondCompile"}
+!311 = !{!"forcedSIMDSize", i8 0}
+!312 = !{!"forceSpillCompression", i1 false}
+!313 = !{!"allowLowerSimd", i1 false}
+!314 = !{!"disableSimd32Slicing", i1 false}
+!315 = !{!"disableSplitOnSpill", i1 false}
+!316 = !{!"enableNewSpillCostFunction", i1 false}
+!317 = !{!"forceVISAPreSched", i1 false}
+!318 = !{!"disableLocalIdOrderOptimizations", i1 false}
+!319 = !{!"disableDispatchAlongY", i1 false}
+!320 = !{!"neededThreadIdLayout", i1* null}
+!321 = !{!"forceTileYWalk", i1 false}
+!322 = !{!"atomicBranch", i32 0}
+!323 = !{!"disableEarlyOut", i1 false}
+!324 = !{!"walkOrderEnabled", i1 false}
+!325 = !{!"walkOrderOverride", i32 0}
+!326 = !{!"ResForHfPacking"}
+!327 = !{!"msInfo", !328, !329, !330, !331, !332, !333, !334, !335, !336}
+!328 = !{!"PrimitiveTopology", i32 3}
+!329 = !{!"MaxNumOfPrimitives", i32 0}
+!330 = !{!"MaxNumOfVertices", i32 0}
+!331 = !{!"MaxNumOfPerPrimitiveOutputs", i32 0}
+!332 = !{!"MaxNumOfPerVertexOutputs", i32 0}
+!333 = !{!"WorkGroupSize", i32 0}
+!334 = !{!"WorkGroupMemorySizeInBytes", i32 0}
+!335 = !{!"IndexFormat", i32 6}
+!336 = !{!"SubgroupSize", i32 0}
+!337 = !{!"taskInfo", !338, !333, !334, !336}
+!338 = !{!"MaxNumOfOutputs", i32 0}
+!339 = !{!"NBarrierCnt", i32 0}
+!340 = !{!"rtInfo", !341, !342, !343, !344, !345, !346, !347, !348, !349, !350, !351, !352, !353, !354, !173}
+!341 = !{!"RayQueryAllocSizeInBytes", i32 0}
+!342 = !{!"NumContinuations", i32 0}
+!343 = !{!"RTAsyncStackAddrspace", i32 -1}
+!344 = !{!"RTAsyncStackSurfaceStateOffset", i1* null}
+!345 = !{!"SWHotZoneAddrspace", i32 -1}
+!346 = !{!"SWHotZoneSurfaceStateOffset", i1* null}
+!347 = !{!"SWStackAddrspace", i32 -1}
+!348 = !{!"SWStackSurfaceStateOffset", i1* null}
+!349 = !{!"RTSyncStackAddrspace", i32 -1}
+!350 = !{!"RTSyncStackSurfaceStateOffset", i1* null}
+!351 = !{!"doSyncDispatchRays", i1 false}
+!352 = !{!"MemStyle", !"Xe"}
+!353 = !{!"GlobalDataStyle", !"Xe"}
+!354 = !{!"uberTileDimensions", i1* null}
+!355 = !{!"CurUniqueIndirectIdx", i32 0}
+!356 = !{!"inlineDynTextures"}
+!357 = !{!"inlineResInfoData"}
+!358 = !{!"immConstant", !359, !360, !361}
+!359 = !{!"data"}
+!360 = !{!"sizes"}
+!361 = !{!"zeroIdxs"}
+!362 = !{!"stringConstants"}
+!363 = !{!"inlineBuffers", !364, !368, !369}
+!364 = !{!"inlineBuffersVec[0]", !365, !366, !367}
+!365 = !{!"alignment", i32 0}
+!366 = !{!"allocSize", i64 0}
+!367 = !{!"Buffer"}
+!368 = !{!"inlineBuffersVec[1]", !365, !366, !367}
+!369 = !{!"inlineBuffersVec[2]", !365, !366, !367}
+!370 = !{!"GlobalPointerProgramBinaryInfos"}
+!371 = !{!"ConstantPointerProgramBinaryInfos"}
+!372 = !{!"GlobalBufferAddressRelocInfo"}
+!373 = !{!"ConstantBufferAddressRelocInfo"}
+!374 = !{!"forceLscCacheList"}
+!375 = !{!"SrvMap"}
+!376 = !{!"RasterizerOrderedByteAddressBuffer"}
+!377 = !{!"RasterizerOrderedViews"}
+!378 = !{!"MinNOSPushConstantSize", i32 0}
+!379 = !{!"inlineProgramScopeOffsets"}
+!380 = !{!"shaderData", !381}
+!381 = !{!"numReplicas", i32 0}
+!382 = !{!"URBInfo", !383, !384, !385}
+!383 = !{!"has64BVertexHeaderInput", i1 false}
+!384 = !{!"has64BVertexHeaderOutput", i1 false}
+!385 = !{!"hasVertexHeader", i1 true}
+!386 = !{!"UseBindlessImage", i1 true}
+!387 = !{!"UseBindlessImageWithSamplerTracking", i1 false}
+!388 = !{!"enableRangeReduce", i1 false}
+!389 = !{!"allowMatchMadOptimizationforVS", i1 false}
+!390 = !{!"disableMatchMadOptimizationForCS", i1 false}
+!391 = !{!"disableMemOptforNegativeOffsetLoads", i1 false}
+!392 = !{!"enableThreeWayLoadSpiltOpt", i1 false}
+!393 = !{!"statefulResourcesNotAliased", i1 false}
+!394 = !{!"disableMixMode", i1 false}
+!395 = !{!"genericAccessesResolved", i1 false}
+!396 = !{!"disableSeparateSpillPvtScratchSpace", i1 false}
+!397 = !{!"enableSeparateSpillPvtScratchSpace", i1 false}
+!398 = !{!"disableSeparateScratchWA", i1 false}
+!399 = !{!"enableRemoveUnusedTGMFence", i1 false}
+!400 = !{!"PrivateMemoryPerFG", !401, !402, !403, !404}
+!401 = !{!"PrivateMemoryPerFGMap[0]", void (%"class.sycl::_V1::range"*, %class.__generated_*, <8 x i32>, <3 x i32>, <3 x i32>, <3 x i32>, i16, i16, i16, i8*, i64, i64, i16, i8, i8, i8, i8, i8, i8)* @_ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE}
+!402 = !{!"PrivateMemoryPerFGValue[0]", i32 0}
+!403 = !{!"PrivateMemoryPerFGMap[1]", void (i16 addrspace(1)*, %"class.sycl::_V1::ext::oneapi::bfloat16"*, <8 x i32>, <3 x i32>, <3 x i32>, i16, i16, i16, i8*, i16, i32, i32)* @_ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_}
+!404 = !{!"PrivateMemoryPerFGValue[1]", i32 0}
+!405 = !{!"m_OptsToDisable"}
+!406 = !{!"capabilities", !407}
+!407 = !{!"globalVariableDecorationsINTEL", i1 false}
+!408 = !{!"extensions", !409}
+!409 = !{!"spvINTELBindlessImages", i1 false}
+!410 = !{!"m_ShaderResourceViewMcsMask", !411, !412}
+!411 = !{!"m_ShaderResourceViewMcsMaskVec[0]", i64 0}
+!412 = !{!"m_ShaderResourceViewMcsMaskVec[1]", i64 0}
+!413 = !{!"computedDepthMode", i32 0}
+!414 = !{!"isHDCFastClearShader", i1 false}
+!415 = !{!"argRegisterReservations", !416}
+!416 = !{!"argRegisterReservationsVec[0]", i32 0}
+!417 = !{!"SIMD16_SpillThreshold", i8 0}
+!418 = !{!"SIMD32_SpillThreshold", i8 0}
+!419 = !{!"m_CacheControlOption", !420, !421, !422, !423}
+!420 = !{!"LscLoadCacheControlOverride", i8 0}
+!421 = !{!"LscStoreCacheControlOverride", i8 0}
+!422 = !{!"TgmLoadCacheControlOverride", i8 0}
+!423 = !{!"TgmStoreCacheControlOverride", i8 0}
+!424 = !{!"ModuleUsesBindless", i1 false}
+!425 = !{!"predicationMap"}
+!426 = !{!"lifeTimeStartMap"}
+!427 = !{!"HitGroups"}
+!428 = !{i32 2, i32 0}
+!429 = !{!"clang version 15.0.7"}
+!430 = !{i32 1, !"wchar_size", i32 4}

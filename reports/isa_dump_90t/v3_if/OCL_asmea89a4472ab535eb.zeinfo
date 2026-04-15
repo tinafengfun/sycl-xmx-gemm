@@ -1,0 +1,142 @@
+---
+version:         '1.60'
+kernels:
+  - name:            _ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE
+    user_attributes:
+      intel_reqd_workgroup_walk_order: [ 0, 1, 2 ]
+    execution_env:
+      grf_count:       256
+      has_4gb_buffers: true
+      has_no_stateless_write: true
+      inline_data_payload_size: 32
+      offset_to_skip_per_thread_data_load: 192
+      simd_size:       32
+      subgroup_independent_forward_progress: true
+      eu_thread_count: 4
+    payload_arguments:
+      - arg_type:        global_id_offset
+        offset:          0
+        size:            12
+      - arg_type:        enqueued_local_size
+        offset:          12
+        size:            12
+      - arg_type:        arg_byvalue
+        offset:          24
+        size:            8
+        arg_index:       0
+        source_offset:   0
+      - arg_type:        arg_byvalue
+        offset:          32
+        size:            8
+        arg_index:       1
+        source_offset:   0
+        is_ptr:          true
+      - arg_type:        arg_byvalue
+        offset:          40
+        size:            2
+        arg_index:       1
+        source_offset:   8
+      - arg_type:        arg_byvalue
+        offset:          44
+        size:            1
+        arg_index:       1
+        source_offset:   10
+      - arg_type:        arg_byvalue
+        offset:          48
+        size:            1
+        arg_index:       1
+        source_offset:   11
+      - arg_type:        arg_byvalue
+        offset:          52
+        size:            1
+        arg_index:       1
+        source_offset:   12
+      - arg_type:        arg_byvalue
+        offset:          56
+        size:            1
+        arg_index:       1
+        source_offset:   13
+      - arg_type:        arg_byvalue
+        offset:          60
+        size:            1
+        arg_index:       1
+        source_offset:   14
+      - arg_type:        arg_byvalue
+        offset:          64
+        size:            1
+        arg_index:       1
+        source_offset:   15
+      - arg_type:        private_base_stateless
+        offset:          72
+        size:            8
+      - arg_type:        global_size
+        offset:          80
+        size:            12
+    per_thread_payload_arguments:
+      - arg_type:        local_id
+        offset:          0
+        size:            192
+  - name:            _ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_
+    user_attributes:
+      intel_reqd_workgroup_walk_order: [ 0, 1, 2 ]
+    execution_env:
+      grf_count:       256
+      has_4gb_buffers: true
+      has_no_stateless_write: true
+      inline_data_payload_size: 32
+      offset_to_skip_per_thread_data_load: 192
+      simd_size:       32
+      subgroup_independent_forward_progress: true
+      eu_thread_count: 4
+    payload_arguments:
+      - arg_type:        global_id_offset
+        offset:          0
+        size:            12
+      - arg_type:        enqueued_local_size
+        offset:          12
+        size:            12
+      - arg_type:        arg_bypointer
+        offset:          24
+        size:            8
+        arg_index:       0
+        addrmode:        stateless
+        addrspace:       global
+        access_type:     readwrite
+      - arg_type:        arg_byvalue
+        offset:          32
+        size:            2
+        arg_index:       1
+        source_offset:   0
+      - arg_type:        private_base_stateless
+        offset:          40
+        size:            8
+    per_thread_payload_arguments:
+      - arg_type:        local_id
+        offset:          0
+        size:            192
+kernels_misc_info:
+  - name:            _ZTSN4sycl3_V16detail18RoundedRangeKernelINS0_4itemILi1ELb1EEELi1EZNS0_7handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_EE
+    args_info:
+      - index:           0
+        address_qualifier: __private
+        access_qualifier: NONE
+        type_name:       'class.sycl::_V1::range;8'
+        type_qualifiers: NONE
+      - index:           1
+        address_qualifier: __private
+        access_qualifier: NONE
+        type_name:       'class.__generated_;16'
+        type_qualifiers: NONE
+  - name:            _ZTSZN4sycl3_V17handler4fillINS0_3ext6oneapi8bfloat16EEEvPvRKT_mEUlNS0_2idILi1EEEE_
+    args_info:
+      - index:           0
+        address_qualifier: __global
+        access_qualifier: NONE
+        type_name:       'short*;8'
+        type_qualifiers: NONE
+      - index:           1
+        address_qualifier: __private
+        access_qualifier: NONE
+        type_name:       'class.sycl::_V1::ext::oneapi::bfloat16;2'
+        type_qualifiers: NONE
+...

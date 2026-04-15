@@ -139,6 +139,14 @@ build_v21_hybrid() {
     echo "  → ${BUILD_DIR}/gemm_v21_hybrid"
 }
 
+build_pfverify() {
+    echo "=== Building prefetch verification ==="
+    icpx ${COMMON_FLAGS} \
+        "${ROOT_DIR}/src/kernels/bench_prefetch_verify.cpp" \
+        -o "${BUILD_DIR}/bench_prefetch_verify"
+    echo "  → ${BUILD_DIR}/bench_prefetch_verify"
+}
+
 build_kparallel() {
     echo "=== Building K-parallel benchmark ==="
     icpx ${COMMON_FLAGS} \
@@ -168,6 +176,7 @@ case "${1:-all}" in
     v21hyb)  build_v21_hybrid ;;
     v21best) build_v21_best ;;
     kpar)    build_kparallel ;;
+    pfv)     build_pfverify ;;
     verify)  build_verify ;;
     vacc)    build_verify_acc ;;
     vslm)    build_verify_slm ;;

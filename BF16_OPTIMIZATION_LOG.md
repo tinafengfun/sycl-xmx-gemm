@@ -418,3 +418,75 @@ For each new attempt, append one row with:
 2. best/avg GFLOPS
 3. delta vs previous effective step
 4. whether it is promoted, control-only, or discarded
+
+---
+
+## Stage 7: Prefetch Micro-Optimization (ISA-Guided) — 2026-04-15
+
+After confirming via ISA dump that B-matrix prefetch generates real `load_block2d → null:0 .ca.ca`
+instructions (A-matrix prefetch is eliminated by compiler), tested all prefetch variants
+suggested by `prefetch_optimization_hint.md`.
+
+### ISA Confirmed Facts
+
+- V1 (A+B pf): 832 instructions, 18 loads (16 data + 2 B-prefetch null loads)
+- V2 (nopf): 785 instructions, 16 data loads only
+- A prefetch: compiler eliminates load but keeps address calculation code (45 extra instructions)
+- B prefetch: generates 2 real `load_block2d.ugm.d16.a64.ca.ca → null:0` instructions
+
+### Prefetch Variant Sweep (20 warmup / 10 iters, 8192×2048×4096)
+
+Each variant is an **independent binary** (separate directory, separate compilation) for clean
+ISA comparison. No mixed-binary contamination.
+
+| Variant | Description | TFLOPS | Delta vs V1 | Delta vs V2(nopf) |
+|---------|------------|-------:|:-----------:|:-----------------:|
+| **V1** | **A+B pf L1 k+32 (baseline)** | **89.55** | **—** | **+4.36T** |
+| V2 | no prefetch | 85.19 | -4.36T | — |
+| V4 | B-only pf L1 k+32 | 86.65 | -2.90T | +1.46T |
+| V5 | B-only pf L2 k+32 | 86.31 | -3.24T | +1.12T |
+| V6 | B-only pf L1 k+64 | 86.23 | -3.32T | +1.04T |
+| V7 | B-only dual pf L1 k+32+k+64 | 81.67 | -7.88T | -3.52T |
+| V8 | B-only pf L2 k+64 | 86.14 | -3.41T | +0.95T |
+
+### Analysis: Why Every Variant Loses to V1
+
+1. **Removing A prefetch hurts (-2.90T)**: Although the compiler eliminates A's prefetch load
+   instruction, the A prefetch **address calculation code** remains and acts as instruction-level
+   parallelism (ILP) filler. Removing it reduces scheduling freedom for the compiler.
+
+2. **L2 hint worse than L1 (-3.24T)**: Despite L2 being shared across SGs in the same XeCore
+   (theoretical bandwidth savings), L1 is closer and faster for the consuming SG. The shared
+   benefit doesn't materialize because each SG needs its own copy in L1 anyway.
+
+3. **k+64 worse than k+32 (-3.32T)**: Farther prefetch distance wastes cache capacity by
+   evicting useful data. k+32 is the sweet spot — exactly one k-step ahead.
+
+4. **Dual prefetch (k+32+k+64) catastrophic (-7.88T)**: Two prefetch instructions per
+   iteration doubles the scoreboard token pressure. With 18 concurrent loads already consuming
+   tokens, 2 more prefetches push past the hardware limit.
+
+5. **L2 + k+64 combination (-3.41T)**: Combining two losing strategies doesn't help.
+
+### Key Insight: A Prefetch is "Free ILP"
+
+The most surprising finding is that **A prefetch helps even though the compiler eliminates the
+actual load**. The address computation code for A prefetch (45 extra instructions in the ISA)
+acts as independent work that the compiler can use to fill instruction slots between loads
+and DPAS. Removing this "dead" code actually hurts performance because it reduces ILP.
+
+This is a compiler-scheduling effect, not a cache effect. The compiler uses the A prefetch
+address computation to hide latency in the load pipeline.
+
+### Files
+
+- Experiment source: `src/prefetch_exp/{v1_baseline,v2_nopf,v4_b_only,v5_b_l2,v6_b_k64,v7_b_dual,v8_b_l2_k64}/test.cpp`
+- Build/run scripts: `src/prefetch_exp/build_all.sh`, `src/prefetch_exp/run_quick.sh`
+- ISA dumps: `reports/isa_dump_90t/v1_pf/`, `reports/isa_dump_90t/v2_clean/`
+
+### Conclusion
+
+**V1 (A+B pf L1 k+32) is the definitive optimal prefetch configuration.** All ISA-guided
+micro-optimizations are worse. The remaining ~5T gap to oneDNN (95T) is caused by SYCL
+compiler limitations (mandatory sync.allwr barriers, no SG=8, no JIT-level pipeline control)
+that cannot be addressed through prefetch tuning.
