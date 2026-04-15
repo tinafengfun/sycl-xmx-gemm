@@ -1,0 +1,1 @@
+ -gline-tables-only -cl-intel-256-GRF-per-thread -dumpvisa -dumpschedule
