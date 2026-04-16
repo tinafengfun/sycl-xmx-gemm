@@ -1,0 +1,20 @@
+
+=== Device Timing Summary ===
+
+                Total Execution Time (ns):            214235671
+    Total Device Time for L0 backend (ns):             20730935
+
+== L0 Backend ==
+
+                                                                                                                                                   Kernel,        Calls,            Time (ns),     Time (%),         Average (ns),             Min (ns),             Max (ns)
+      "main::{lambda()#1}::operator()() const::{lambda(sycl::_V1::handler&)#1}::operator()(sycl::_V1::handler&) const::{lambda(sycl::_V1::nd_item<2>)#1}",            8,             19860727,    95.802368,              2482590,              2337083,              2876979
+"sycl::_V1::handler::fill<sycl::_V1::ext::oneapi::bfloat16>(void*, sycl::_V1::ext::oneapi::bfloat16 const&, unsigned long)::{lambda(sycl::_V1::id<1>)#1}",            2,               870208,     4.197630,               435104,               143854,               726354
+
+
+=== Kernel Properties ===
+
+                                                                                                                                                   Kernel, Compiled, SIMD, Number of Arguments, SLM Per Work Group, Private Memory Per Thread, Spill Memory Per Thread, Register File Size Per Thread
+      "main::{lambda()#1}::operator()() const::{lambda(sycl::_V1::handler&)#1}::operator()(sycl::_V1::handler&) const::{lambda(sycl::_V1::nd_item<2>)#1}",      JIT,   16,                   5,                  0,                         0,                       0,                       unknown
+"sycl::_V1::handler::fill<sycl::_V1::ext::oneapi::bfloat16>(void*, sycl::_V1::ext::oneapi::bfloat16 const&, unsigned long)::{lambda(sycl::_V1::id<1>)#1}",      JIT,   32,                   2,                  0,                         0,                       0,                       unknown
+
+

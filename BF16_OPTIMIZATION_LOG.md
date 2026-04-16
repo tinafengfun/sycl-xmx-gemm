@@ -403,12 +403,10 @@ and K-parallel for occupancy — not viable from SYCL.
 
 ---
 
-## Current Best (Updated 2026-04-14)
+## Current Best (Updated 2026-04-14, superseded by Stage 8)
 
 - **BF16 peak**: `89.77 TFLOPS` at 8192×2048×4096 (4 SGs 2×2 + A+B pf)
-- **Best across all sizes**: 8 SGs 4×2 + A+B pf (most consistent)
-- Best kernel: `src/kernels/gemm_v20_best.cpp`
-- Runtime: `ONEAPI_DEVICE_SELECTOR=level_zero:gpu`, `IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"`, `SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"`, `IGC_VISAOptions="-perfmodel"`, `IGC_VectorAliasBBThreshold=10000`
+- Superseded by Stage 8: **90.57 TFLOPS** with `-assumeL1Hit -SWSBTokenNum 32`
 
 ## Update Rule (for every new optimization)
 
@@ -490,3 +488,82 @@ address computation to hide latency in the load pipeline.
 micro-optimizations are worse. The remaining ~5T gap to oneDNN (95T) is caused by SYCL
 compiler limitations (mandatory sync.allwr barriers, no SG=8, no JIT-level pipeline control)
 that cannot be addressed through prefetch tuning.
+
+---
+
+## Stage 8: Compiler Scheduling & SWSB Optimization — 2026-04-16
+
+After hardware profiling (unitrace) confirmed XVE is only 65.2% active with 32.6% stall
+(dominated by DPAS accumulator cross-iteration dependency), explored IGC compiler flags
+to improve instruction scheduling around sync points.
+
+### Hardware Profile (unitrace VectorEngineStalls, 4SG 2×2, 8192×2048×4096)
+
+| Metric | Value | Meaning |
+|--------|------:|---------|
+| XVE_ACTIVE | 65.2% | Pipe active time |
+| XVE_STALL | 32.6% | Loaded but no pipe active |
+| Unaccounted dependency | ~21.5% | DPAS accumulator RAW stall |
+| SBID stall | 4.76% | Scoreboard token exhaustion |
+| ALUWR stall | 2.58% | ALU write-back conflict |
+| INSTFETCH stall | 1.35% | Front-end |
+| BARRIER stall | 0.00% | No barrier wait |
+| Occupancy | 97.0% | Fully packed |
+| L3 hit rate | 91.9% | Cache excellent |
+| Memory BW usage | ~10% | Not memory-bound |
+
+### Compiler Flag Sweep
+
+Systematically tested IGC SWSB, sync, and scheduling options. Each test is the same V1
+baseline binary with only environment variables changed.
+
+| Flag | TFLOPS | Delta | Note |
+|------|-------:|------:|------|
+| Baseline | 89.65 | — | Current best config |
+| **`-assumeL1Hit`** | **90.56** | **+0.91** | Assume L1 cache hit, more aggressive load-DPAS overlap |
+| `-assumeL1Hit -SWSBTokenNum 32` | **90.64** | **+0.99** | + more scoreboard tokens |
+| `-splitbarrierid1` | 89.71 | +0.06 | Split barrier signal/wait |
+| `-SWSBTokenNum 32` | 89.75 | +0.10 | More tokens |
+| `-SWSBDepReduction` | 89.39 | -0.26 | Dependency reduction |
+| `-SWSBReplaceARWithAW` | 78.78 | **-10.87** | **CATASTROPHIC** — wrong dependency semantics |
+| `-scheduleFor2xDpas` | crash | — | Xe3P only, not BMG |
+| `-enableDpasFwd 1` | crash | — | Xe3P only, not BMG |
+| `IGC_CodeSchedulingConfig=1` | crash | — | Internal option, unstable |
+
+### Full Benchmark Confirmation (100/500)
+
+**New best config**: `IGC_VISAOptions="-perfmodel -assumeL1Hit -SWSBTokenNum 32"`
+
+| Size | Old TFLOPS | New TFLOPS | Delta |
+|------|----------:|----------:|------:|
+| 8192×2048×4096 | 89.73 | **90.57** | **+0.84** |
+| 8192×4096×4096 | 87.51 | **87.77** | +0.26 |
+| 8192×8192×4096 | 79.79 | **79.99** | +0.20 |
+| 4096³ | 86.78 | **87.42** | **+0.64** |
+| 8192³ | 79.84 | 79.83 | -0.01 |
+
+### Analysis: Why `-assumeL1Hit` Works
+
+`-assumeL1Hit` tells the IGC instruction scheduler to model load latency as if L1 is always
+hit (typically ~10 cycles vs ~50-100 cycles for L2/DRAM miss). This causes the scheduler to:
+1. Place loads closer to their consumers (DPAS), reducing the "dead space" between load
+   completion and DPAS issue
+2. More aggressively overlap independent loads with DPAS execution
+3. Reduce the number of wasted cycles where ALU0 is idle between load batches
+
+This is safe because our profiling shows 91.9% L3 hit rate — the data IS almost always in
+cache. The scheduler was being too conservative about load latency.
+
+### Files
+
+- Compiler sweep script: `scripts/run_compiler_sync_sweep.sh`
+- unitrace profile data: `reports/unitrace_profile/`
+
+---
+
+## Current Best (Updated 2026-04-16)
+
+- **BF16 peak**: `90.57 TFLOPS` at 8192×2048×4096 (91.5% of 99T) — 4 SGs 2×2 + A+B pf
+- **Best across all sizes**: 4 SGs 2×2 + pf with `-assumeL1Hit -SWSBTokenNum 32`
+- Best kernel: `src/kernels/gemm_v20_best.cpp`
+- Runtime: `ONEAPI_DEVICE_SELECTOR=level_zero:gpu`, `IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"`, `SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file -gline-tables-only"`, `IGC_VISAOptions="-perfmodel -assumeL1Hit -SWSBTokenNum 32"`, `IGC_VectorAliasBBThreshold=10000`
