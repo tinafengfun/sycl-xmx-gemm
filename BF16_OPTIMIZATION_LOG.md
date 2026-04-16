@@ -554,6 +554,64 @@ hit (typically ~10 cycles vs ~50-100 cycles for L2/DRAM miss). This causes the s
 This is safe because our profiling shows 91.9% L3 hit rate — the data IS almost always in
 cache. The scheduler was being too conservative about load latency.
 
+### Stage 8b: Deeper IGC Scheduling Sweep (dpas_opt_3.md) — All Negative
+
+After confirming `-assumeL1Hit` as the key lever, tested deeper IGC options suggested by
+dpas_opt_3.md analysis of IGC source code. All on top of the current best config
+(`-assumeL1Hit -SWSBTokenNum 32`), with 100/500 confirmation.
+
+#### Pre-RA Scheduler Control (`IGC_VISAPreSchedCtrlDpas`)
+
+Bit-mask controlling DPAS kernel scheduling policy:
+- Bit 1 (2) = UseLatency — enable latency-hiding scheduling
+- Bit 2 (4) = UseMinReg — minimize register pressure
+- Bit 5 (32) = DoNotIterate
+- Bit 6 (64) = TrySubtreeSchedule
+
+| Value | TFLOPS (100/500) | Delta | Note |
+|------:|-------:|------:|------|
+| (default) | 90.50 | — | Current best |
+| 2 (latency only) | 90.72 | +0.22 | Unstable: 90.56/90.55/90.25 across 3 runs |
+| 6 (latency+pressure) | 90.21 | -0.29 | Worse |
+| 66 (latency+subtree) | 90.23 | -0.27 | Worse |
+
+#### Other IGC Options
+
+| Option | TFLOPS (100/500) | Delta | Note |
+|--------|-------:|------:|------|
+| `IGC_VISAPreSchedExtraGRF=32` | 90.65 | +0.15 | Noise range |
+| `-scheduleACCDep` | 90.58 | +0.08 | Noise range |
+| `IGC_VISAPreSchedRPThreshold=140` | 90.21 | -0.29 | Worse |
+| `IGC_EnableSendFusion=2` | 90.35 | -0.15 | Worse |
+| ExtraGRF32 + scheduleACCDep | 90.68 | +0.18 | Noise range, unstable across runs |
+| PreSchedDpas2 + scheduleACCDep | 90.24 | -0.26 | Worse |
+| ExtraGRF32 + PreSchedDpas2 + scheduleACCDep | 90.39 | -0.11 | Worse |
+
+#### Stability Verification (20/50 × 3 runs)
+
+| Config | Run 1 | Run 2 | Run 3 | Spread |
+|--------|------:|------:|------:|--------|
+| Current best | 90.21 | 90.55 | 90.50 | 0.34T |
+| PreSchedDpas2 | 90.56 | 90.55 | 90.25 | 0.31T |
+
+Both show ~0.3T natural variation. The apparent +0.22T from PreSchedDpas2 is within
+measurement noise — no statistical significance.
+
+#### Conclusion
+
+None of the deeper IGC scheduling options from dpas_opt_3.md provide a statistically
+significant improvement over the current best config. The `-assumeL1Hit` discovery from
+Stage 8 remains the only confirmed compiler-level optimization beyond the baseline.
+
+Key learnings:
+1. **PreSchedCtrlDpas bit manipulation**: Changing scheduling policy bits doesn't help —
+   the default is already well-tuned for this kernel pattern.
+2. **ExtraGRF margin**: Giving the scheduler 32 extra GRF doesn't help — the kernel
+   already uses 100% of 256 GRF with no spills.
+3. **scheduleACCDep**: More precise accumulator dependency analysis shows +0.08T, within noise.
+4. **DPAS Forwarding (`-enableDpasFwd`)**: Xe3P-only feature, crashes on BMG (Xe2).
+5. **2×DPAS scheduling (`-scheduleFor2xDpas`)**: Also Xe3P-only, crashes on BMG.
+
 ### Files
 
 - Compiler sweep script: `scripts/run_compiler_sync_sweep.sh`
