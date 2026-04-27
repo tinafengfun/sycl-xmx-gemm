@@ -1,0 +1,116 @@
+; Test: Full K-loop with dynamic stride from kernel arg
+; This is essentially the 1x1 GEMM kernel but with a fixed stride=16
+
+               OpCapability Addresses
+               OpCapability Kernel
+               OpCapability Int64
+               OpCapability Int16
+               OpCapability CooperativeMatrixKHR
+               OpExtension "SPV_KHR_cooperative_matrix"
+          %1 = OpExtInstImport "OpenCL.std"
+               OpMemoryModel Physical64 OpenCL
+               OpEntryPoint Kernel %main "test_kloop"
+               OpExecutionMode %main SubgroupSize 16
+
+     %void   = OpTypeVoid
+     %bool   = OpTypeBool
+     %uint   = OpTypeInt 32 0
+     %ulong  = OpTypeInt 64 0
+     %float  = OpTypeFloat 32
+     %ushort = OpTypeInt 16 0
+     %v3uint = OpTypeVector %uint 3
+
+   %uint_0  = OpConstant %uint 0
+   %uint_1  = OpConstant %uint 1
+   %uint_2  = OpConstant %uint 2
+   %uint_3  = OpConstant %uint 3
+   %uint_8  = OpConstant %uint 8
+   %uint_16 = OpConstant %uint 16
+   %uint_128 = OpConstant %uint 128
+   %ulong_2 = OpConstant %ulong 2
+   %ulong_4 = OpConstant %ulong 4
+
+%ptr_in_v3u = OpTypePointer Input %v3uint
+%ptr_cross_ushort = OpTypePointer CrossWorkgroup %ushort
+%ptr_cross_float  = OpTypePointer CrossWorkgroup %float
+
+               OpDecorate %wg_var BuiltIn WorkgroupId
+%wg_var = OpVariable %ptr_in_v3u Input
+
+  %cm_acc = OpTypeCooperativeMatrixKHR %float  %uint_3 %uint_8  %uint_16 %uint_2
+  %cm_a   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_8  %uint_16 %uint_0
+  %cm_b   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_16 %uint_16 %uint_1
+
+  %fn_type = OpTypeFunction %void %ptr_cross_ushort %ptr_cross_ushort %ptr_cross_float %uint %uint %uint
+
+  %main = OpFunction %void None %fn_type
+  %buf_a = OpFunctionParameter %ptr_cross_ushort
+  %buf_b = OpFunctionParameter %ptr_cross_ushort
+  %buf_c = OpFunctionParameter %ptr_cross_float
+  %M_arg = OpFunctionParameter %uint
+  %N_arg = OpFunctionParameter %uint
+  %K_arg = OpFunctionParameter %uint
+
+  %entry = OpLabel
+
+  ; Get work-group ID
+    %wg_id = OpLoad %v3uint %wg_var
+       %gm = OpCompositeExtract %uint %wg_id 0
+
+  ; Compute A offset: gm * K * 2 bytes, K=K_arg
+  ; Use fixed stride=16 for simplicity
+    %a_ulp = OpConvertPtrToU %ulong %buf_a
+    %c_ulp = OpConvertPtrToU %ulong %buf_c
+
+  ; Load initial accumulator from C at gm*16*4 bytes offset
+    %c_off_elem = OpIMul %uint %gm %uint_16
+    %c_offL = OpUConvert %ulong %c_off_elem
+    %c_boff = OpIMul %ulong %c_offL %ulong_4
+    %c_addr = OpIAdd %ulong %c_ulp %c_boff
+    %c_ptr  = OpConvertUToPtr %ptr_cross_float %c_addr
+  %acc_init = OpCooperativeMatrixLoadKHR %cm_acc %c_ptr %uint_0 %uint_16 None
+
+               OpBranch %k_hdr
+
+; ---- K-loop ----
+   %k_hdr = OpLabel
+               OpLoopMerge %k_exit %k_cont None
+   %acc_phi = OpPhi %cm_acc %acc_init %entry %acc_new %k_body
+    %k_phi  = OpPhi %uint  %uint_0 %entry %k_inc %k_body
+    %k_cond = OpULessThan %bool %k_phi %uint_16
+               OpBranchConditional %k_cond %k_body %k_exit
+
+   %k_body = OpLabel
+
+  ; Load A tile: row gm, col k, stride=16 (hardcoded for testing)
+  ; offset = (gm * 16 + k) * 2 bytes
+  %a_row_off = OpIMul %uint %gm %uint_16
+  %a_elem    = OpIAdd %uint %a_row_off %k_phi
+  %a_elemL   = OpUConvert %ulong %a_elem
+  %a_boff    = OpIMul %ulong %a_elemL %ulong_2
+  %a_addr    = OpIAdd %ulong %a_ulp %a_boff
+  %a_ptr     = OpConvertUToPtr %ptr_cross_ushort %a_addr
+  %a_tile    = OpCooperativeMatrixLoadKHR %cm_a %a_ptr %uint_0 %uint_16 None
+
+  ; Load B tile: row k, col 0, stride=16
+  ; offset = k * 16 * 2 bytes
+  %b_row_off = OpIMul %uint %k_phi %uint_16
+  %b_elemL   = OpUConvert %ulong %b_row_off
+  %b_boff    = OpIMul %ulong %b_elemL %ulong_2
+  %b_addr    = OpIAdd %ulong %a_ulp %b_boff  ; reuse a_ulp as b_ulp for testing
+  %b_ptr     = OpConvertUToPtr %ptr_cross_ushort %b_addr
+  %b_tile    = OpCooperativeMatrixLoadKHR %cm_b %b_ptr %uint_0 %uint_16 None
+
+  ; DPAS
+  %acc_new = OpCooperativeMatrixMulAddKHR %cm_acc %a_tile %b_tile %acc_phi
+
+  %k_inc = OpIAdd %uint %k_phi %uint_16
+               OpBranch %k_cont
+
+   %k_cont = OpLabel
+               OpBranch %k_hdr
+
+  %k_exit = OpLabel
+               OpCooperativeMatrixStoreKHR %c_ptr %acc_phi %uint_0 %uint_16 None
+               OpReturn
+               OpFunctionEnd

@@ -1,0 +1,56 @@
+; Minimal test: No loop, straight-line DPAS
+; Load C, load A, load B, DPAS, store result
+
+               OpCapability Addresses
+               OpCapability Kernel
+               OpCapability Int64
+               OpCapability Int16
+               OpCapability CooperativeMatrixKHR
+               OpExtension "SPV_KHR_cooperative_matrix"
+          %1 = OpExtInstImport "OpenCL.std"
+               OpMemoryModel Physical64 OpenCL
+               OpEntryPoint Kernel %main "test_straight"
+               OpExecutionMode %main SubgroupSize 16
+
+     %void   = OpTypeVoid
+     %uint   = OpTypeInt 32 0
+     %ulong  = OpTypeInt 64 0
+     %float  = OpTypeFloat 32
+     %ushort = OpTypeInt 16 0
+
+   %uint_0  = OpConstant %uint 0
+   %uint_2  = OpConstant %uint 2
+   %uint_3  = OpConstant %uint 3
+   %uint_8  = OpConstant %uint 8
+   %uint_16 = OpConstant %uint 16
+
+%ptr_cross_us = OpTypePointer CrossWorkgroup %ushort
+%ptr_cross_f  = OpTypePointer CrossWorkgroup %float
+
+  %cm_acc = OpTypeCooperativeMatrixKHR %float  %uint_3 %uint_8  %uint_16 %uint_2
+  %cm_a   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_8  %uint_16 %uint_0
+  %cm_b   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_16 %uint_16 %uint_1
+
+  %fn_type = OpTypeFunction %void %ptr_cross_us %ptr_cross_us %ptr_cross_f %uint %uint %uint
+
+  %main = OpFunction %void None %fn_type
+  %buf_a = OpFunctionParameter %ptr_cross_us
+  %buf_b = OpFunctionParameter %ptr_cross_us
+  %buf_c = OpFunctionParameter %ptr_cross_f
+  %M_arg = OpFunctionParameter %uint
+  %N_arg = OpFunctionParameter %uint
+  %K_arg = OpFunctionParameter %uint
+
+  %entry = OpLabel
+  ; Load C (accumulator), A, B — all from base pointers
+   %c_tile = OpCooperativeMatrixLoadKHR %cm_acc %buf_c %uint_0 %uint_16 None
+   %a_tile = OpCooperativeMatrixLoadKHR %cm_a   %buf_a %uint_0 %uint_16 None
+   %b_tile = OpCooperativeMatrixLoadKHR %cm_b   %buf_b %uint_0 %uint_16 None
+
+  ; DPAS: result = A * B + C
+   %result = OpCooperativeMatrixMulAddKHR %cm_acc %a_tile %b_tile %c_tile
+
+  ; Store result
+               OpCooperativeMatrixStoreKHR %buf_c %result %uint_0 %uint_16 None
+               OpReturn
+               OpFunctionEnd

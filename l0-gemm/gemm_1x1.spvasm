@@ -1,0 +1,130 @@
+; SPIR-V 1.4
+; BF16 GEMM 1x1 tiling: C = A * B
+; Each SG computes one 8x8 output tile (DPAS atom = dpas.8x8)
+; B is VNNI-packed: (K/2) × (N*2)
+;
+; Args: buf_a, buf_b, buf_c, M, N, K
+; Dispatch: grid = (M/8, N/8, 1), wg_size = (16, 1, 1)
+
+               OpCapability Addresses
+               OpCapability Kernel
+               OpCapability Int64
+               OpCapability Int16
+               OpCapability CooperativeMatrixKHR
+               OpExtension "SPV_KHR_cooperative_matrix"
+          %1 = OpExtInstImport "OpenCL.std"
+               OpMemoryModel Physical64 OpenCL
+               OpEntryPoint Kernel %main "gemm_1x1"
+               OpExecutionMode %main SubgroupSize 16
+
+     %void   = OpTypeVoid
+     %bool   = OpTypeBool
+     %uint   = OpTypeInt 32 0
+     %ulong  = OpTypeInt 64 0
+     %float  = OpTypeFloat 32
+     %ushort = OpTypeInt 16 0
+     %v3uint = OpTypeVector %uint 3
+
+     %ptr_in_v3u  = OpTypePointer Input %v3uint
+     %ptr_xwg_us  = OpTypePointer CrossWorkgroup %ushort
+     %ptr_xwg_f   = OpTypePointer CrossWorkgroup %float
+
+   %uint_0  = OpConstant %uint 0
+   %uint_1  = OpConstant %uint 1
+   %uint_2  = OpConstant %uint 2
+   %uint_3  = OpConstant %uint 3
+   %uint_8  = OpConstant %uint 8
+   %uint_16 = OpConstant %uint 16
+   %ulong_0 = OpConstant %ulong 0
+   %ulong_2 = OpConstant %ulong 2
+   %ulong_4 = OpConstant %ulong 4
+
+               OpDecorate %wg_id_var BuiltIn WorkgroupId
+%wg_id_var = OpVariable %ptr_in_v3u Input
+
+; ---- 8x8 Cooperative Matrix Types ----
+; dpas.8x8: A[8x16] * B[16x8] -> C[8x8]
+  %cm_acc = OpTypeCooperativeMatrixKHR %float  %uint_3 %uint_8  %uint_8  %uint_2
+  %cm_a   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_8  %uint_16 %uint_0
+  %cm_b   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_16 %uint_8  %uint_1
+
+  %fn_type = OpTypeFunction %void %ptr_xwg_us %ptr_xwg_us %ptr_xwg_f %uint %uint %uint
+
+  %main = OpFunction %void None %fn_type
+  %buf_a = OpFunctionParameter %ptr_xwg_us
+  %buf_b = OpFunctionParameter %ptr_xwg_us
+  %buf_c = OpFunctionParameter %ptr_xwg_f
+  %M_arg = OpFunctionParameter %uint
+  %N_arg = OpFunctionParameter %uint
+  %K_arg = OpFunctionParameter %uint
+
+  %entry = OpLabel
+    %wg_id = OpLoad %v3uint %wg_id_var
+       %gm = OpCompositeExtract %uint %wg_id 0
+       %gn = OpCompositeExtract %uint %wg_id 1
+
+  ; Output tile: (gm*8, gn*8)
+    %out_m = OpIMul %uint %gm %uint_8
+    %out_n = OpIMul %uint %gn %uint_8
+
+    %a_ulp = OpConvertPtrToU %ulong %buf_a
+    %b_ulp = OpConvertPtrToU %ulong %buf_b
+    %c_ulp = OpConvertPtrToU %ulong %buf_c
+
+  %out_m_K = OpIMul %uint %out_m %K_arg
+  %out_m_N = OpIMul %uint %out_m %N_arg
+
+  ; Load initial acc from C (zero-initialized)
+  %ci_e  = OpIAdd %uint %out_m_N %out_n
+  %ci_eL = OpUConvert %ulong %ci_e
+  %ci_b  = OpIMul %ulong %ci_eL %ulong_4
+  %ci_a  = OpIAdd %ulong %c_ulp %ci_b
+  %ci_p  = OpConvertUToPtr %ptr_xwg_f %ci_a
+  %acc_i = OpCooperativeMatrixLoadKHR %cm_acc %ci_p %uint_0 %N_arg None
+               OpBranch %k_hdr
+
+; K-loop (self-loop pattern)
+   %k_hdr = OpLabel
+               OpLoopMerge %k_exit %k_hdr None
+   %acc_p = OpPhi %cm_acc %acc_i %entry %acc_n %k_body
+    %k_p  = OpPhi %uint  %uint_0 %entry %k_n %k_body
+    %k_c  = OpULessThan %bool %k_p %K_arg
+               OpBranchConditional %k_c %k_body %k_exit
+
+   %k_body = OpLabel
+
+  ; A tile: (out_m, k), stride K
+  %ae   = OpIAdd %uint %out_m_K %k_p
+  %aeL  = OpUConvert %ulong %ae
+  %aeb  = OpIMul %ulong %aeL %ulong_2
+  %aea  = OpIAdd %ulong %a_ulp %aeb
+  %aep  = OpConvertUToPtr %ptr_xwg_us %aea
+  %at   = OpCooperativeMatrixLoadKHR %cm_a %aep %uint_0 %K_arg None
+
+  ; B tile: VNNI row k/2, VNNI col out_n*2, stride N*2
+  %kh   = OpShiftRightLogical %uint %k_p %uint_1
+  %Nx2  = OpIMul %uint %N_arg %uint_2
+  %br   = OpIMul %uint %kh %Nx2
+  %bc   = OpIMul %uint %out_n %uint_2
+  %be   = OpIAdd %uint %br %bc
+  %beL  = OpUConvert %ulong %be
+  %beb  = OpIMul %ulong %beL %ulong_2
+  %bea  = OpIAdd %ulong %b_ulp %beb
+  %bep  = OpConvertUToPtr %ptr_xwg_us %bea
+  %bt   = OpCooperativeMatrixLoadKHR %cm_b %bep %uint_0 %Nx2 None
+
+  ; DPAS
+  %acc_n = OpCooperativeMatrixMulAddKHR %cm_acc %at %bt %acc_p
+
+  %k_n = OpIAdd %uint %k_p %uint_16
+               OpBranch %k_hdr
+
+  %k_exit = OpLabel
+  %cs_e  = OpIAdd %uint %out_m_N %out_n
+  %cs_eL = OpUConvert %ulong %cs_e
+  %cs_b  = OpIMul %ulong %cs_eL %ulong_4
+  %cs_a  = OpIAdd %ulong %c_ulp %cs_b
+  %cs_p  = OpConvertUToPtr %ptr_xwg_f %cs_a
+               OpCooperativeMatrixStoreKHR %cs_p %acc_p %uint_0 %N_arg None
+               OpReturn
+               OpFunctionEnd

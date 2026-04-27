@@ -1,0 +1,9 @@
+ElfType 64b
+Section name, Section type
+.text.gemm_1x1, 1
+.symtab, 2
+.spv, 4278190089
+.note.intelgt.metrics, 7
+.rel.text.gemm_1x1, 9
+.ze_info, 4278190097
+.note.intelgt.compat, 7

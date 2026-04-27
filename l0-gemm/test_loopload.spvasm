@@ -1,0 +1,77 @@
+; Test: Loads inside loop from BASE pointers (no offset)
+; If this works → issue is with dynamic pointer offset in loop
+; If segfault → issue is with loads inside K-loop itself
+
+               OpCapability Addresses
+               OpCapability Kernel
+               OpCapability Int64
+               OpCapability Int16
+               OpCapability CooperativeMatrixKHR
+               OpExtension "SPV_KHR_cooperative_matrix"
+          %1 = OpExtInstImport "OpenCL.std"
+               OpMemoryModel Physical64 OpenCL
+               OpEntryPoint Kernel %main "test_loopload"
+               OpExecutionMode %main SubgroupSize 16
+
+     %void   = OpTypeVoid
+     %bool   = OpTypeBool
+     %uint   = OpTypeInt 32 0
+     %ulong  = OpTypeInt 64 0
+     %float  = OpTypeFloat 32
+     %ushort = OpTypeInt 16 0
+
+   %uint_0  = OpConstant %uint 0
+   %uint_1  = OpConstant %uint 1
+   %uint_2  = OpConstant %uint 2
+   %uint_3  = OpConstant %uint 3
+   %uint_8  = OpConstant %uint 8
+   %uint_16 = OpConstant %uint 16
+   %ulong_0 = OpConstant %ulong 0
+
+%ptr_cross_ushort = OpTypePointer CrossWorkgroup %ushort
+%ptr_cross_float  = OpTypePointer CrossWorkgroup %float
+
+  %cm_acc = OpTypeCooperativeMatrixKHR %float  %uint_3 %uint_8  %uint_16 %uint_2
+  %cm_a   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_8  %uint_16 %uint_0
+  %cm_b   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_16 %uint_16 %uint_1
+
+  %fn_type = OpTypeFunction %void %ptr_cross_ushort %ptr_cross_ushort %ptr_cross_float %uint %uint %uint
+
+  %main = OpFunction %void None %fn_type
+  %buf_a = OpFunctionParameter %ptr_cross_ushort
+  %buf_b = OpFunctionParameter %ptr_cross_ushort
+  %buf_c = OpFunctionParameter %ptr_cross_float
+  %unused1 = OpFunctionParameter %uint
+  %unused2 = OpFunctionParameter %uint
+  %unused3 = OpFunctionParameter %uint
+
+  %entry = OpLabel
+ ; Load initial acc from C
+ %acc_init = OpCooperativeMatrixLoadKHR %cm_acc %buf_c %uint_0 %uint_16 None
+               OpBranch %k_hdr
+
+   %k_hdr = OpLabel
+               OpLoopMerge %k_exit %k_cont None
+   %acc_phi = OpPhi %cm_acc %acc_init %entry %acc_new %k_body
+    %k_phi  = OpPhi %uint  %uint_0 %entry %k_inc %k_body
+    %k_cond = OpULessThan %bool %k_phi %uint_16
+               OpBranchConditional %k_cond %k_body %k_exit
+
+   %k_body = OpLabel
+
+  ; Load INSIDE loop from base pointers (no offset)
+   %a_tile = OpCooperativeMatrixLoadKHR %cm_a %buf_a %uint_0 %uint_16 None
+   %b_tile = OpCooperativeMatrixLoadKHR %cm_b %buf_b %uint_0 %uint_16 None
+
+  %acc_new = OpCooperativeMatrixMulAddKHR %cm_acc %a_tile %b_tile %acc_phi
+
+  %k_inc = OpIAdd %uint %k_phi %uint_16
+               OpBranch %k_cont
+
+   %k_cont = OpLabel
+               OpBranch %k_hdr
+
+  %k_exit = OpLabel
+               OpCooperativeMatrixStoreKHR %buf_c %acc_phi %uint_0 %uint_16 None
+               OpReturn
+               OpFunctionEnd

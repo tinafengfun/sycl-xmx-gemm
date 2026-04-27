@@ -1,0 +1,82 @@
+; Test: WorkgroupId builtin + simple DPAS + store
+; No pointer arithmetic — just use the base pointers
+; If this hangs → WorkgroupId is the problem
+
+               OpCapability Addresses
+               OpCapability Kernel
+               OpCapability Int64
+               OpCapability Int16
+               OpCapability CooperativeMatrixKHR
+               OpExtension "SPV_KHR_cooperative_matrix"
+          %1 = OpExtInstImport "OpenCL.std"
+               OpMemoryModel Physical64 OpenCL
+               OpEntryPoint Kernel %main "test_wgid"
+               OpExecutionMode %main SubgroupSize 16
+
+     %void   = OpTypeVoid
+     %bool   = OpTypeBool
+     %uint   = OpTypeInt 32 0
+     %ulong  = OpTypeInt 64 0
+     %float  = OpTypeFloat 32
+     %ushort = OpTypeInt 16 0
+     %v3uint = OpTypeVector %uint 3
+
+   %uint_0  = OpConstant %uint 0
+   %uint_1  = OpConstant %uint 1
+   %uint_2  = OpConstant %uint 2
+   %uint_3  = OpConstant %uint 3
+   %uint_8  = OpConstant %uint 8
+   %uint_16 = OpConstant %uint 16
+   %uint_128 = OpConstant %uint 128
+   %ulong_0 = OpConstant %ulong 0
+
+%ptr_in_v3u = OpTypePointer Input %v3uint
+%ptr_cross_ushort = OpTypePointer CrossWorkgroup %ushort
+%ptr_cross_float  = OpTypePointer CrossWorkgroup %float
+
+               OpDecorate %wg_var BuiltIn WorkgroupId
+%wg_var = OpVariable %ptr_in_v3u Input
+
+  %cm_acc = OpTypeCooperativeMatrixKHR %float  %uint_3 %uint_8  %uint_16 %uint_2
+  %cm_a   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_8  %uint_16 %uint_0
+  %cm_b   = OpTypeCooperativeMatrixKHR %ushort %uint_3 %uint_16 %uint_16 %uint_1
+
+  %fn_type = OpTypeFunction %void %ptr_cross_ushort %ptr_cross_ushort %ptr_cross_float %uint %uint %uint
+
+  %main = OpFunction %void None %fn_type
+  %buf_a = OpFunctionParameter %ptr_cross_ushort
+  %buf_b = OpFunctionParameter %ptr_cross_ushort
+  %buf_c = OpFunctionParameter %ptr_cross_float
+  %M_arg = OpFunctionParameter %uint
+  %N_arg = OpFunctionParameter %uint
+  %K_arg = OpFunctionParameter %uint
+
+  %entry = OpLabel
+
+  ; Read WorkgroupId
+    %wg_id = OpLoad %v3uint %wg_var
+       %gm = OpCompositeExtract %uint %wg_id 0
+       %gn = OpCompositeExtract %uint %wg_id 1
+
+  ; Just load from base pointers and DPAS (same as working kernel)
+   %a_tile = OpCooperativeMatrixLoadKHR %cm_a %buf_a %uint_0 %uint_16 None
+   %b_tile = OpCooperativeMatrixLoadKHR %cm_b %buf_b %uint_0 %uint_16 None
+ %acc_init = OpCooperativeMatrixLoadKHR %cm_acc %buf_c %uint_0 %uint_16 None
+               OpBranch %loop_header
+
+%loop_header = OpLabel
+               OpLoopMerge %loop_exit %loop_header None
+   %acc_phi = OpPhi %cm_acc %acc_init %entry %acc_next %loop_body
+     %i_phi = OpPhi %uint %uint_0 %entry %i_next %loop_body
+      %cond = OpULessThan %bool %i_phi %uint_128
+               OpBranchConditional %cond %loop_body %loop_exit
+
+  %loop_body = OpLabel
+   %acc_next = OpCooperativeMatrixMulAddKHR %cm_acc %a_tile %b_tile %acc_phi
+     %i_next = OpIAdd %uint %i_phi %uint_1
+               OpBranch %loop_header
+
+  %loop_exit = OpLabel
+               OpCooperativeMatrixStoreKHR %buf_c %acc_phi %uint_0 %uint_16 None
+               OpReturn
+               OpFunctionEnd
